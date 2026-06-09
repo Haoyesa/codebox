@@ -1,0 +1,17 @@
+{
+  "servers": {
+    "feishu-bitable": {
+      "type": "stdio",
+      "command": "D:\\YOUR_UNZIP_PATH\\student-pack-win-x64\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "feishu_bitable_mcp.server"],
+      "env": {
+        "FEISHU_APP_ID": "your_app_id",
+        "FEISHU_APP_SECRET": "your_app_secret",
+        "FEISHU_USER_ACCESS_TOKEN": "",
+        "FEISHU_API_BASE_URL": "https://open.feishu.cn/open-apis",
+        "FEISHU_USER_ID_TYPE": "open_id"
+      }
+    }
+  },
+  "inputs": []
+}

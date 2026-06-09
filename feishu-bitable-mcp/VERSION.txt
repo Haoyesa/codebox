@@ -1,0 +1,5 @@
+package=feishu-bitable-mcp-student-pack-win-x64
+source_project=feishu-bitable-mcp
+source_version=0.1.0
+build_date=2026-03-04
+platform=windows-x64

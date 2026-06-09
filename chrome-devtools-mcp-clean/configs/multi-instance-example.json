@@ -1,0 +1,38 @@
+{
+  "mcpServers": {
+    "chrome-devtools-bitbrowser-instance-1": {
+      "command": "python",
+      "args": [
+        "D:/github/chrome-devtools-mcp-clean/server.py"
+      ],
+      "env": {
+        "BIT_BROWSER_MODE": "true",
+        "BIT_BROWSER_ID": "63de02b1ebb34145b7b7886294821a72",
+        "BIT_BROWSER_API_PORT": "54345",
+        "BIT_BROWSER_API_HOST": "localhost"
+      }
+    },
+    "chrome-devtools-bitbrowser-instance-2": {
+      "command": "python",
+      "args": [
+        "D:/github/chrome-devtools-mcp-clean/server.py"
+      ],
+      "env": {
+        "BIT_BROWSER_MODE": "true",
+        "BIT_BROWSER_ID": "另一个浏览器实例ID",
+        "BIT_BROWSER_API_PORT": "54345",
+        "BIT_BROWSER_API_HOST": "localhost"
+      }
+    },
+    "chrome-devtools-standard-chrome": {
+      "command": "python",
+      "args": [
+        "D:/github/chrome-devtools-mcp-clean/server.py"
+      ],
+      "env": {
+        "BIT_BROWSER_MODE": "false"
+      }
+    }
+  }
+}
+
