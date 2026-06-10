@@ -226,7 +226,6 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     // spawned process, not via argv[0]. If we leave cwd at the app cwd the
     // headless bootstrap fails with "Could not find platform independent
     // libraries <prefix>". Pin cwd to the program dir and prepend it to PATH
-    // for good measure; also set URE_BOOTSTRAP as a belt-and-braces fallback.
     const loDir = path.dirname(loExe);
     const proc = spawn(loExe, args, {
       shell: false,
@@ -235,7 +234,6 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
       env: Object.assign({}, process.env, {
         HOME: process.env.HOME || os.homedir(),
         APPDATA: process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-        URE_BOOTSTRAP: 'vnd.sun.star.pathname:' + loDir.replace(/\\/g, '/') + '/fundamentalrc',
         PATH: loDir + path.delimiter + (process.env.PATH || '')
       })
     });
@@ -249,7 +247,13 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
         const outFile = path.join(outputDir, base + '.' + loFormat);
         resolve({ success: true, outputPath: outFile, format: loFormat });
       } else {
-        reject(new Error((stderr || stdout).trim() || ('LibreOffice 退出码 ' + code)));
+        const tail = (stderr || stdout || '').trim();
+        const hint = tail
+          ? tail
+          : ('退出码 ' + code +
+             '（0xC0000409 常见于 DLL 版本冲突、杀毒拦截、或 VC++ 运行库缺失；' +
+             '试一下关闭杀毒、用 LO 安装包里的 Repair 修一下）');
+        reject(new Error('LibreOffice ' + hint + ' | cmd: ' + loExe + ' ' + args.join(' ')));
       }
     });
   });
