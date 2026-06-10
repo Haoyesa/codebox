@@ -94,3 +94,8 @@ changsha_poster.svg
 /full-tool/verify.js
 /full-tool/deep_test.js
 /full-tool/test_dl.zip
+# ===== Codex scratch / patch scripts =====
+/tmp/
+/.tmp/
+*.patch.js
+

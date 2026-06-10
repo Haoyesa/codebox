@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 
 let mainWindow;
 
@@ -183,7 +184,10 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     : loFormat;
 
   const finalOut = String(outputDir).replace(/\\/g, '/');
-  const args = [
+  const userProfile = path.join(os.tmpdir(), 'fulltool-lo-profile');
+  try { fs.mkdirSync(userProfile, { recursive: true }); } catch (_) {}
+  const profileArg = '-env:UserInstallation=file:///' + userProfile.replace(/\\/g, '/');
+  const args = [profileArg,
     '--headless',
     '--nologo',
     '--nofirststartwizard',
@@ -193,10 +197,17 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     inputPath
   ];
 
-  console.log('[LibreOffice]', loExe, args.join(' '));
+  console.log('[LibreOffice]', loExe, '[' + profileArg + ']', args.join(' '));
 
   return await new Promise((resolve, reject) => {
-    const proc = spawn(loExe, args, { shell: false, windowsHide: true });
+    const proc = spawn(loExe, args, {
+      shell: false,
+      windowsHide: true,
+      env: Object.assign({}, process.env, {
+        HOME: process.env.HOME || os.homedir(),
+        APPDATA: process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+      })
+    });
     let stdout = '', stderr = '';
     proc.stdout.on('data', d => stdout += d.toString('utf8'));
     proc.stderr.on('data', d => stderr += d.toString('utf8'));
