@@ -96,6 +96,6 @@ changsha_poster.svg
 /full-tool/test_dl.zip
 # ===== Codex scratch / patch scripts =====
 /tmp/
-/.tmp/
+**/.tmp/
+**/tmp/
 *.patch.js
-
