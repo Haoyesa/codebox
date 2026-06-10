@@ -229,10 +229,15 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     // AND cd into it inside the same command line that runs soffice. Doing
     // it via cmd.exe /c keeps the spawn args handling we already have and
     // also gives LO a proper console-attached env.
-    const quoteIfNeeded = (v) => (/[s"&|<>^()]/.test(v)) ? '"' + v.replace(/"/g, '\\"') + '"' : v;
+    // Always wrap every token in double quotes. cmd.exe handles
+    // superfluous outer quotes fine, and skipping the check is what
+    // caused `set PATH=C:\\Program Files\\...` to be misparsed as
+    // `set PATH=C:\\Program` (everything past the first space was
+    // dropped) — which is why we were getting exit code 1.
+    const q = (v) => '"' + String(v).replace(/"/g, '\\"') + '"';
     const inner = ['set', 'PATH=' + loDir + ';%PATH%', '&&',
-                   'cd', '/d', quoteIfNeeded(loDir), '&&',
-                   quoteIfNeeded(loExe)].concat(args.map(quoteIfNeeded)).join(' ');
+                   'cd', '/d', q(loDir), '&&',
+                   q(loExe)].concat(args.map(q)).join(' ');
     const proc = spawn('cmd.exe', ['/d', '/s', '/c', inner], {
       shell: false,
       windowsHide: true,
