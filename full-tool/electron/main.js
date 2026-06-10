@@ -269,9 +269,14 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     // `set PATH=C:\\Program` (everything past the first space was
     // dropped) — which is why we were getting exit code 1.
     const q = (v) => '"' + String(v).replace(/"/g, '\\"') + '"';
-    const cmdLine = ['set', 'PATH=' + loDir + ';%PATH%', '&&',
-                   'cd', '/d', q(loDir), '&&',
-                   q(loExe)].concat(args.map(q)).join(' ');
+    // The env passed to spawn already has PATH set to loDir + system dirs,
+    // so the cmd.exe child inherits a correct PATH on startup. We used to
+    // also `set PATH=...` here, but cmd tokenizes the unquoted value on
+    // whitespace and only kept `C:\Program` (the rest of `C:\Program
+    // Files\...` got treated as a separate command, which then failed and
+    // short-circuited the whole && chain). Drop the set; it was redundant
+    // and was the actual cause of cmd returning exit 1.
+    const cmdLine = ['cd', '/d', q(loDir), '&&', q(loExe)].concat(args.map(q)).join(' ');
     const proc = spawn(comSpec, ['/d', '/s', '/c', cmdLine], {
       shell: false,
       windowsHide: true,
