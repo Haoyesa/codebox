@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readDir: (path) => ipcRenderer.invoke('fs:readDir', path),
   getFileInfo: (path) => ipcRenderer.invoke('fs:getFileInfo', path),
   saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
+  writeFile: (path, data) => ipcRenderer.invoke('fs:writeFile', path, data),
+  renameFile: (oldPath, newName) => ipcRenderer.invoke('fs:renameFile', oldPath, newName),
 
   // 下载
   downloadFile: (options) => ipcRenderer.invoke('download:file', options),

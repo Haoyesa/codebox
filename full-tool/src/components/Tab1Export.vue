@@ -1,5 +1,5 @@
 <template>
-  <section class="page active">
+  <section class="page">
     <p class="desc">
       选择文件后将自动扫描并导出 PNG，支持放大与裁剪。
       <span v-if="!loFound" class="tag tag-amber" style="margin-left: 8px;">
@@ -294,11 +294,17 @@ async function pickOutputDir() {
     return;
   }
 
-  const result = await window.electronAPI.selectOutputDir();
-  if (!result.canceled && result.filePaths.length > 0) {
-    state.outputDir = result.filePaths[0];
-    state.statusText = '输出目录已设置';
-    window.showToast?.('输出目录已设置', 'success');
+  try {
+    const result = await window.electronAPI.selectOutputDir();
+    if (result.canceled) return;
+    if (result.filePaths && result.filePaths.length > 0) {
+      state.outputDir = result.filePaths[0];
+      state.statusText = '输出目录已设置';
+      window.showToast?.('输出目录已设置', 'success');
+    }
+  } catch (err) {
+    console.error('[pickOutputDir]', err);
+    window.showToast?.('选择目录失败：' + (err.message || '未知错误'), 'error');
   }
 }
 
@@ -370,7 +376,6 @@ async function startExport() {
       if (state.cancelRequested) break;
 
       for (const fileName of folder.files) {
-        if (state.cancelRequested) break;
         if (state.cancelRequested) break;
 
         state.currentFile = fileName;

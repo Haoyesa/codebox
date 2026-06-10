@@ -1,4 +1,4 @@
-﻿# ===== OS =====
+# ===== OS =====
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -38,6 +38,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# ===== Vue / Vite / Electron build artifacts =====
+/full-tool/dist/
+/full-tool/electron-*.tgz
+/full-tool/dist-electron/
 
 # ===== Runtime / logs =====
 *.log
@@ -80,3 +85,12 @@ xhs_to_feishu/*.txt
 xhs_to_feishu/config.py
 ppt-agent/test_*.pptx
 changsha_poster.svg
+
+# ===== Literal Windows env-var path leak =====
+/%SystemDrive%/
+
+# ===== One-off debug scripts (full-tool) =====
+/full-tool/test_*.js
+/full-tool/verify.js
+/full-tool/deep_test.js
+/full-tool/test_dl.zip

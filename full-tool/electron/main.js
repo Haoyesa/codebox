@@ -5,7 +5,29 @@ const fs = require('fs');
 
 let mainWindow;
 
-function createWindow() {
+const http = require('http');
+
+function waitForVite(port, retries = 30) {
+  return new Promise((resolve, reject) => {
+    function tryPort(p) {
+      const req = http.get(`http://localhost:${p}`, (res) => {
+        if (res.statusCode === 200) { resolve(p); }
+      });
+      req.on('error', () => {
+        if (p <= port + 10) { setTimeout(() => tryPort(p + 1), 500); }
+        else { reject(new Error('Vite server not found')); }
+      });
+      req.setTimeout(1000, () => {
+        req.destroy();
+        if (p <= port + 10) { setTimeout(() => tryPort(p + 1), 500); }
+        else { reject(new Error('Vite server timeout')); }
+      });
+    }
+    tryPort(port);
+  });
+}
+
+async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -20,9 +42,17 @@ function createWindow() {
     show: false
   });
 
-  // 开发模式加载 localhost，生产模式加载打包文件
+  // 开发模式等待 Vite 启动，生产模式加载打包文件
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-    mainWindow.loadURL('http://localhost:5173');
+    try {
+      const vitePort = await waitForVite(5173);
+      console.log('Vite ready on port', vitePort);
+      mainWindow.loadURL(`http://localhost:${vitePort}`);
+    } catch (e) {
+      console.error('Failed to connect to Vite:', e.message);
+      app.quit();
+      return;
+    }
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -71,10 +101,17 @@ ipcMain.handle('dialog:openDirectory', async () => {
 
 // 选择输出目录
 ipcMain.handle('dialog:selectOutputDir', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory', 'createDirectory']
-  });
-  return result;
+  console.log('[IPC] dialog:selectOutputDir called, mainWindow exists:', !!mainWindow);
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory', 'createDirectory']
+    });
+    console.log('[IPC] dialog result:', JSON.stringify(result));
+    return result;
+  } catch (err) {
+    console.error('[IPC] dialog:selectOutputDir error:', err.message);
+    throw err;
+  }
 });
 
 // LibreOffice 转换
@@ -136,6 +173,29 @@ ipcMain.handle('fs:getFileInfo', async (event, filePath) => {
   try {
     const stats = fs.statSync(filePath);
     return { success: true, size: stats.size, mtime: stats.mtime };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// 写入文件
+ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
+  try {
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(filePath, buffer);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// 重命名文件
+ipcMain.handle('fs:renameFile', async (event, oldPath, newName) => {
+  try {
+    const dir = path.dirname(oldPath);
+    const newPath = path.join(dir, newName);
+    fs.renameSync(oldPath, newPath);
+    return { success: true, newPath };
   } catch (err) {
     return { success: false, error: err.message };
   }
