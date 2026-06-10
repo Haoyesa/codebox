@@ -15,6 +15,26 @@ export async function pdfToPngs({ pdfPath, scale = 1 }) {
   // Read the PDF bytes through main process (renderer can't fs.readFile).
   const data = await window.electronAPI.readFile(pdfPath);
   const bytes = new Uint8Array(data);
+  if (bytes.length === 0) {
+    throw new Error(
+      'PDF is 0 bytes at ' + pdfPath + '. LO probably wrote an empty file (silent failure). ' +
+      '常见原因: 1) 上一次 LO 没退干净, user profile 被锁; ' +
+      '2) 杀软拦截 LO 写文件; 3) 输入文件 LO 不识别. ' +
+      'Try: 删 C:/Users/25147/AppData/Local/Temp/fulltool-lo-profile 后重试; ' +
+      '右键该 PDF 看实际大小; 用 LO 手动 --convert-to pdf 同文件验证.'
+    );
+  }
+  // pdfjs also wants a %PDF- header check. If those magic bytes are
+  // missing the file is either empty or not a real PDF, and pdfjs will
+  // throw InvalidPDFException with a less actionable message. Catch it
+  // up front.
+  const head = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]);
+  if (head !== '%PDF-') {
+    throw new Error(
+      'PDF header missing at ' + pdfPath + ' (got ' + JSON.stringify(head) + ', ' + bytes.length + ' bytes). ' +
+      'File is not a real PDF. LO likely wrote garbage or the path is wrong.'
+    );
+  }
 
   const doc = await pdfjs.getDocument({ data: bytes }).promise;
   const out = [];
