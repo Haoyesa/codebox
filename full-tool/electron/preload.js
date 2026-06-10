@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFileInfo: (path) => ipcRenderer.invoke('fs:getFileInfo', path),
   saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
   writeFile: (path, data) => ipcRenderer.invoke('fs:writeFile', path, data),
+  unlink: (path) => ipcRenderer.invoke('fs:unlink', path),
   renameFile: (oldPath, newName) => ipcRenderer.invoke('fs:renameFile', oldPath, newName),
 
   // 下载

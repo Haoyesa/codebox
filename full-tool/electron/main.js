@@ -188,13 +188,12 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
   }
 
   const fmtMap = { PNG: 'png', JPG: 'jpg', JPEG: 'jpg', PDF: 'pdf', SVG: 'svg' };
-  const loFormat = fmtMap[String(format).toUpperCase()] || 'png';
-
-  // scale 在 headless 下用 Resolution (DPI) 表达；96 DPI = 1x
-  const dpi = Math.max(72, Math.round(96 * Number(scale) || 96));
-  const convertSpec = (loFormat === 'png' || loFormat === 'jpg')
-    ? loFormat + ':Resolution=' + dpi
-    : loFormat;
+  // Plan B: LO only produces PDF. Image formats (PNG/JPG) are
+  // rendered from the PDF in the renderer using pdfjs-dist. The LO PNG
+  // filter was unstable on this user's install (crashed silently with
+  // exit 1 / no stderr even though PDF export worked perfectly).
+  const loFormat = 'pdf';
+  const convertSpec = loFormat;
 
   // Normalize both paths to forward-slash absolute form. LO on Windows
   // misparses --outdir / input args when they contain backslashes mixed
@@ -291,7 +290,7 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
       if (code === 0) {
         const base = path.basename(inputPath, path.extname(inputPath));
         const outFile = path.join(outputDir, base + '.' + loFormat);
-        resolve({ success: true, outputPath: outFile, format: loFormat });
+        resolve({ success: true, outputPath: outFile, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
       } else {
         const tail = (stderr || stdout || '').trim();
         const hint = tail
@@ -339,6 +338,17 @@ ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
   try {
     const buffer = Buffer.from(data);
     fs.writeFileSync(filePath, buffer);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// 删除文件（用于清理临时 PDF 中间产物）
+ipcMain.handle('fs:unlink', async (event, filePath) => {
+  try {
+    if (typeof filePath !== 'string' || !filePath) return { success: false, error: 'invalid path' };
+    fs.unlinkSync(filePath);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

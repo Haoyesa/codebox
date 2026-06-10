@@ -192,6 +192,7 @@ import { Download, FileText, FolderOpen, FolderOutput, AlertTriangle } from 'luc
 import * as mammoth from 'mammoth';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { pdfToPngs } from '../utils/pdfToPngs.js';
 
 // Formats
 const formats = ['PNG', 'JPG', 'PDF', 'SVG'];
@@ -474,12 +475,28 @@ async function startExport() {
           state.skippedFiles.push(file.name);
           window.showToast?.(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
         } else {
-          await window.electronAPI.libreOfficeConvert({
+          const loRes = await window.electronAPI.libreOfficeConvert({
             inputPath: file.path,
             outputDir: state.outputDir,
             format: fmt,
             scale: scale
           });
+          // LO only emits PDF. If the user picked an image format, do the
+          // PDF->PNG conversion in the renderer using pdfjs-dist.
+          const reqFmt = (loRes && loRes.requestedFormat) || 'PDF';
+          if (reqFmt !== 'PDF' && loRes && loRes.outputPath) {
+            const base = file.name.replace(/\.[^.]+$/, '');
+            const pngs = await pdfToPngs({ pdfPath: loRes.outputPath, scale });
+            for (let p = 0; p < pngs.length; p++) {
+              const page = pngs[p];
+              const ab = await page.blob.arrayBuffer();
+              const target = state.outputDir + '/' + base + '-page-' + String(p + 1).padStart(2, '0') + '.png';
+              await window.electronAPI.writeFile(target, new Uint8Array(ab));
+            }
+            // Tidy up: remove the temp PDF so the output dir only has the
+            // images the user actually asked for.
+            try { await window.electronAPI.unlink(loRes.outputPath); } catch (_) {}
+          }
         }
       }
       if (state.skippedFiles.indexOf(file.name) < 0 || file.ext === 'docx') {
