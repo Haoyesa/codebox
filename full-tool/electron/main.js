@@ -220,12 +220,28 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
 
   console.log('[LibreOffice]', loExe, '[' + profileArg + ']', args.join(' '));
 
+  const loDir = path.dirname(loExe);
+
   // Sanity-fill the env vars cmd/soffice tend to look up on Windows.
   // When our parent process is something stripped-down (e.g. VS Code
-  // debug, nvm windows, etc.) the child sees an empty USERPROFILE / TMP
+  // debug, nvm-windows, etc.) the child sees an empty USERPROFILE / TMP
   // and the bootstrap or profile write goes sideways.
   const sysRoot = process.env.SystemRoot || process.env.windir || 'C:\\Windows';
   const sys32 = path.join(sysRoot, 'System32');
+  const comSpec = process.env.ComSpec || path.join(sys32, 'cmd.exe');
+  // Build a fallback PATH that doesn't depend on process.env.PATH being
+  // sane: LO program dir first, then the standard Windows system dirs.
+  // The parent process PATH is still appended for things like a custom
+  // git / python install that soffice might want to find.
+  const systemPathParts = [
+    sys32,
+    sysRoot,
+    path.join(sys32, 'Wbem'),
+    path.join(sys32, 'WindowsPowerShell', 'v1.0')
+  ].filter(Boolean);
+  const fallbackPath = [loDir].concat(systemPathParts).concat([process.env.PATH || ''])
+    .filter(Boolean)
+    .join(path.delimiter);
   const env = Object.assign({}, process.env, {
     HOME: os.homedir(),
     USERPROFILE: os.homedir(),
@@ -235,11 +251,11 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     TEMP: os.tmpdir(),
     SystemRoot: sysRoot,
     windir: sysRoot,
-    ComSpec: process.env.ComSpec || path.join(sys32, 'cmd.exe')
+    ComSpec: comSpec,
+    PATH: fallbackPath
   });
 
   return await new Promise((resolve, reject) => {
-    const loDir = path.dirname(loExe);
     // The cwd-only fix doesn't bootstrap reliably on every Windows LO
     // install (the install prefix lookup in cppuhelper/paths.cxx still bails
     // out when the bootstrap.ini / registry / exe-path lookups miss). The
@@ -256,13 +272,11 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     const cmdLine = ['set', 'PATH=' + loDir + ';%PATH%', '&&',
                    'cd', '/d', q(loDir), '&&',
                    q(loExe)].concat(args.map(q)).join(' ');
-    const proc = spawn('cmd.exe', ['/d', '/s', '/c', cmdLine], {
+    const proc = spawn(comSpec, ['/d', '/s', '/c', cmdLine], {
       shell: false,
       windowsHide: true,
       windowsVerbatimArguments: true,
-      env: Object.assign({}, env, {
-        PATH: loDir + path.delimiter + (env.PATH || '')
-      })
+      env: env
     });
     let stdout = '', stderr = '';
     proc.stdout.on('data', d => stdout += d.toString('utf8'));
