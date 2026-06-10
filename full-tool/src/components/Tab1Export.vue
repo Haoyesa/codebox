@@ -162,19 +162,36 @@
       <div class="tip-icon">!</div>
       <div class="tip-content">
         <b>未检测到 LibreOffice</b><br>
-        点击下载 LibreOffice（开源免费），下载安装后重新打开本工具即可使用文档导出功能。
-        <button class="btn btn-primary btn-sm" style="margin-top: 8px;" @click="downloadLO">
-          <i data-lucide="download"></i>
-          下载 LibreOffice
-        </button>
+        <span>.docx 可通过内置引擎导出；其他格式（PDF/PPT/XLS 等）需要 LibreOffice。</span>
+        <div class="tip-actions">
+          <button class="btn btn-primary btn-sm" @click="downloadLO">
+            <i data-lucide="download"></i>
+            下载 LibreOffice
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="pickLOPath">
+            <i data-lucide="settings"></i>
+            手动指定 soffice.exe
+          </button>
+        </div>
       </div>
     </div>
+    <div v-else-if="loPath" class="meta meta-lo" :title="loPath">
+      <i data-lucide="check-circle" style="width:12px;height:12px;color:var(--ok)"></i>
+      LibreOffice：{{ truncatePath(loPath) }}
+      <button class="btn btn-ghost btn-sm" style="margin-left: 6px;" @click="pickLOPath">更换</button>
+    </div>
+
+    <!-- JS 兑底渲染节点（.docx 脱机路径） -->
+    <div id="lo-render-host" class="render-host" aria-hidden="true"></div>
   </section>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { Download, FileText, FolderOpen, FolderOutput, AlertTriangle } from 'lucide-vue-next';
+import * as mammoth from 'mammoth';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 // Formats
 const formats = ['PNG', 'JPG', 'PDF', 'SVG'];
@@ -190,7 +207,11 @@ const state = reactive({
   currentFile: '',
   doneCount: 0,
   totalCount: 0,
-  cancelRequested: false
+  cancelRequested: false,
+  failedFiles: [],
+  skippedFiles: [],
+  loFound: true,
+  loPath: ''
 });
 
 const settings = reactive({
@@ -321,6 +342,71 @@ function cancelExport() {
   state.statusText = '正在取消...';
 }
 
+// .docx 走纯 JS 兜底（mammoth → html2canvas → png/jpg/pdf）
+async function convertDocxViaJS(filePath, format, scale) {
+  const r = await window.electronAPI.readFile(filePath);
+  if (!r.success) throw new Error('读取文件失败：' + r.error);
+  const result = await mammoth.convertToHtml({ arrayBuffer: r.data });
+  const html = result.value || '';
+  if (!html.trim()) throw new Error('docx 内容为空');
+
+  const baseName = filePath.split(/[\\/]/).pop().replace(/\.docx?$/i, '');
+  const fmt = String(format || 'PNG').toUpperCase();
+  const ext = fmt === 'JPG' ? 'jpg' : fmt === 'PDF' ? 'pdf' : 'png';
+
+  const host = document.getElementById('lo-render-host');
+  if (!host) throw new Error('找不到渲染节点 lo-render-host');
+  host.innerHTML = '<div class="lo-doc">' + html + '</div>';
+  await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+  const target = host.firstElementChild;
+  if (!target) throw new Error('渲染目标为空');
+
+  const canvas = await html2canvas(target, {
+    scale: scale || 1,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false
+  });
+
+  const safeDir = String(state.outputDir).replace(/[\\/]+$/, '');
+  const outPath = safeDir + '/' + baseName + '.' + ext;
+
+  if (fmt === 'PDF') {
+    const orient = canvas.width >= canvas.height ? 'l' : 'p';
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: orient });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const ratio = canvas.height / canvas.width;
+    const imgW = pageW;
+    const imgH = imgW * ratio;
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    if (imgH <= pageH) {
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, imgW, imgH);
+    } else {
+      let remaining = imgH;
+      let yPos = 0;
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, imgW, imgH);
+      remaining -= pageH;
+      yPos += pageH;
+      while (remaining > 0) {
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'JPEG', 0, -yPos, imgW, imgH);
+        remaining -= pageH;
+        yPos += pageH;
+      }
+    }
+    const ab = pdf.output('arraybuffer');
+    await window.electronAPI.writeFile(outPath, ab);
+  } else {
+    const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
+    const blob = await new Promise(res => canvas.toBlob(res, mime, 0.92));
+    if (!blob) throw new Error('canvas 转 blob 失败');
+    const ab = await blob.arrayBuffer();
+    await window.electronAPI.writeFile(outPath, ab);
+  }
+  host.innerHTML = '';
+}
+
 async function startExport() {
   if (!canStart.value || state.isExporting) return;
 
@@ -328,10 +414,24 @@ async function startExport() {
   state.progress = 0;
   state.cancelRequested = false;
   state.doneCount = 0;
+  state.failedFiles = [];
+  state.skippedFiles = [];
 
-  // Calculate total files
-  let totalFiles = state.files.length;
-  state.folders.forEach(f => totalFiles += f.files.length);
+  // 汇总所有待处理文件
+  const allFiles = [];
+  for (const f of state.files) {
+    allFiles.push({ path: f.path, name: f.name, ext: f.name.split('.').pop().toLowerCase() });
+  }
+  for (const folder of state.folders) {
+    for (const fileName of folder.files) {
+      allFiles.push({
+        path: folder.path + '/' + fileName,
+        name: fileName,
+        ext: fileName.split('.').pop().toLowerCase()
+      });
+    }
+  }
+  const totalFiles = allFiles.length;
   state.totalCount = totalFiles;
 
   if (totalFiles === 0) {
@@ -342,74 +442,73 @@ async function startExport() {
 
   state.statusText = '正在准备导出...';
 
-  // Check if LibreOffice is available
   if (!window.electronAPI) {
-    // Browser fallback - just simulate
     simulateExport();
     return;
   }
 
-  // Real export using LibreOffice
-  try {
-    for (const file of state.files) {
-      if (state.cancelRequested) break;
+  const fmt = settings.format;
+  const scale = parseFloat(settings.scale) || 1;
 
-      state.currentFile = file.name;
-      state.statusText = `正在导出：${file.name}`;
+  // 实时再检测一次 LO 状态
+  await checkLibreOffice();
+  const loAvailable = state.loFound;
 
-      try {
-        await window.electronAPI.libreOfficeConvert({
-          inputPath: file.path,
-          outputDir: state.outputDir,
-          scale: parseFloat(settings.scale)
-        });
-        state.doneCount++;
-        state.progress = Math.round((state.doneCount / totalFiles) * 100);
-      } catch (err) {
-        console.error('Convert failed for', file.name, err);
-        window.showToast?.(`转换失败：${file.name}`, 'error');
-      }
-    }
+  const hasNonDocx = allFiles.some(f => f.ext !== 'docx');
+  if (!loAvailable && hasNonDocx) {
+    window.showToast?.('未检测到 LibreOffice，PDF/PPT/XLS 等格式将跳过；.docx 仍可导出', 'warn');
+  }
 
-    // Process folders
-    for (const folder of state.folders) {
-      if (state.cancelRequested) break;
+  let successCount = 0;
+  for (let i = 0; i < allFiles.length; i++) {
+    if (state.cancelRequested) break;
+    const file = allFiles[i];
+    state.currentFile = file.name;
+    state.statusText = '正在导出：' + file.name;
 
-      for (const fileName of folder.files) {
-        if (state.cancelRequested) break;
-
-        state.currentFile = fileName;
-        state.statusText = `正在导出：${fileName}`;
-
-        const filePath = folder.path + '/' + fileName;
-        try {
+    try {
+      if (file.ext === 'docx') {
+        await convertDocxViaJS(file.path, fmt, scale);
+      } else {
+        if (!loAvailable) {
+          state.skippedFiles.push(file.name);
+          window.showToast?.('跳过（非 .docx 且无 LibreOffice）：' + file.name, 'warn');
+        } else {
           await window.electronAPI.libreOfficeConvert({
-            inputPath: filePath,
+            inputPath: file.path,
             outputDir: state.outputDir,
-            scale: parseFloat(settings.scale)
+            format: fmt,
+            scale: scale
           });
-          state.doneCount++;
-          state.progress = Math.round((state.doneCount / totalFiles) * 100);
-        } catch (err) {
-          console.error('Convert failed for', fileName, err);
         }
       }
+      if (state.skippedFiles.indexOf(file.name) < 0 || file.ext === 'docx') {
+        successCount++;
+      }
+    } catch (err) {
+      console.error('Convert failed for', file.name, err);
+      state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
+      window.showToast?.('转换失败：' + file.name, 'error');
     }
-
-    if (state.cancelRequested) {
-      state.statusText = `已取消（${state.doneCount}/${totalFiles}）`;
-      window.showToast?.('导出已取消', 'warn');
-    } else {
-      state.statusText = `导出完成：${state.doneCount} 个文件`;
-      window.showToast?.(`导出完成！${state.doneCount} 个文件`, 'success');
-    }
-  } catch (err) {
-    state.statusText = '导出出错：' + err.message;
-    window.showToast?.('导出出错：' + err.message, 'error');
-  } finally {
-    state.isExporting = false;
-    state.currentFile = '';
+    state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
+    state.progress = Math.round((state.doneCount / totalFiles) * 100);
   }
+
+  // 收尾汇总
+  const failed = state.failedFiles.length;
+  const skipped = state.skippedFiles.length;
+  if (state.cancelRequested) {
+    state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + '）';
+    window.showToast?.('导出已取消', 'warn');
+  } else {
+    let msg = '导出完成：成功 ' + successCount;
+    if (failed > 0) msg += '，失败 ' + failed;
+    if (skipped > 0) msg += '，跳过 ' + skipped;
+    state.statusText = msg;
+    window.showToast?.(msg, failed > 0 ? 'warn' : 'success');
+  }
+  state.isExporting = false;
+  state.currentFile = '';
 }
 
 function simulateExport() {
@@ -444,9 +543,42 @@ async function downloadLO() {
   window.open('https://www.libreoffice.org/download/download/', '_blank');
 }
 
+async function checkLibreOffice() {
+  if (!window.electronAPI) { state.loFound = false; return; }
+  try {
+    const r = await window.electronAPI.libreOfficeCheck();
+    state.loFound = !!r.found;
+    state.loPath = r.path || '';
+  } catch (_) {
+    state.loFound = false;
+  }
+}
+
+async function pickLOPath() {
+  if (!window.electronAPI) {
+    window.showToast?.('请在 Electron 版本中设置', 'error');
+    return;
+  }
+  const r = await window.electronAPI.openFiles({
+    properties: ['openFile'],
+    filters: [{ name: 'LibreOffice (soffice.exe)', extensions: ['exe'] }]
+  });
+  if (r.canceled || !r.filePaths || r.filePaths.length === 0) return;
+  const exePath = r.filePaths[0];
+  const res = await window.electronAPI.libreOfficeSetPath(exePath);
+  if (res.success) {
+    state.loFound = true;
+    state.loPath = res.path;
+    window.showToast?.('已指定 LibreOffice 路径：' + res.path, 'success');
+  } else {
+    window.showToast?.('设置失败：' + (res.error || '未知错误'), 'error');
+  }
+}
+
 onMounted(async () => {
   await nextTick();
   window.lucide?.createIcons();
+  await checkLibreOffice();
 });
 </script>
 
@@ -569,6 +701,34 @@ onMounted(async () => {
 .tip-content { font-size: 13px; line-height: 1.6; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* JS .docx 脱机渲染节点（页面外脱机布局） */
+.render-host {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 794px;
+  pointer-events: none;
+  z-index: -1;
+  background: #fff;
+}
+.render-host .lo-doc {
+  padding: 48px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #111;
+  background: #fff;
+  font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+  word-wrap: break-word;
+}
+.render-host .lo-doc img { max-width: 100%; height: auto; }
+.render-host .lo-doc table { border-collapse: collapse; width: 100%; }
+.render-host .lo-doc td,
+.render-host .lo-doc th { border: 1px solid #ddd; padding: 4px 8px; }
+.render-host .lo-doc p { margin: 0 0 8px 0; }
+
+.tip-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.meta-lo { color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
 
 @media (max-width: 900px) {
   .exp-grid { grid-template-columns: 1fr; }

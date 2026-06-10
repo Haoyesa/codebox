@@ -8,9 +8,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // LibreOffice 转换
   libreOfficeConvert: (options) => ipcRenderer.invoke('libreoffice:convert', options),
+  libreOfficeCheck: () => ipcRenderer.invoke('libreoffice:check'),
+  libreOfficeSetPath: (exePath) => ipcRenderer.invoke('libreoffice:setPath', exePath),
 
   // 文件系统
   readDir: (path) => ipcRenderer.invoke('fs:readDir', path),
+  readFile: (path) => ipcRenderer.invoke('fs:readFile', path),
   getFileInfo: (path) => ipcRenderer.invoke('fs:getFileInfo', path),
   saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
   writeFile: (path, data) => ipcRenderer.invoke('fs:writeFile', path, data),

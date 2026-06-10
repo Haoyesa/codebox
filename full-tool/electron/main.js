@@ -114,51 +114,114 @@ ipcMain.handle('dialog:selectOutputDir', async () => {
   }
 });
 
+// 查找 LibreOffice 可执行文件：先读用户配置覆盖，再试 where soffice.exe，再试常见安装路径
+function findLibreOffice() {
+  const settingsPath = path.join(app.getPath('userData'), 'lo-path.txt');
+  if (fs.existsSync(settingsPath)) {
+    const p = fs.readFileSync(settingsPath, 'utf8').trim();
+    if (p && fs.existsSync(p)) return p;
+  }
+
+  if (process.platform === 'win32') {
+    try {
+      const out = require('child_process').execSync('where soffice.exe', {
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true
+      });
+      const first = out.split(/\r?\n/).map(x => x.trim()).find(Boolean);
+      if (first && fs.existsSync(first)) return first;
+    } catch (_) { /* not in PATH */ }
+  }
+
+  const candidates = [
+    'C:/Program Files/LibreOffice/program/soffice.exe',
+    'C:/Program Files (x86)/LibreOffice/program/soffice.exe',
+    '/usr/bin/soffice',
+    '/Applications/LibreOffice.app/Contents/MacOS/soffice'
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+// 检测 LibreOffice 是否可用
+ipcMain.handle('libreoffice:check', async () => {
+  const exe = findLibreOffice();
+  return { found: !!exe, path: exe || null };
+});
+
+// 用户手动指定 LibreOffice 路径
+ipcMain.handle('libreoffice:setPath', async (event, exePath) => {
+  if (typeof exePath !== 'string' || !fs.existsSync(exePath)) {
+    return { success: false, error: '路径不存在或无效' };
+  }
+  try {
+    const settingsPath = path.join(app.getPath('userData'), 'lo-path.txt');
+    fs.writeFileSync(settingsPath, exePath, 'utf8');
+    return { success: true, path: exePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // LibreOffice 转换
-ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, scale = 1 }) => {
-  return new Promise((resolve, reject) => {
-    // 查找 LibreOffice 可执行文件路径
-    const loPaths = [
-      'C:/Program Files/LibreOffice/program/soffice.exe',
-      'C:/Program Files (x86)/LibreOffice/program/soffice.exe',
-      path.join(app.getPath('userData'), 'LibreOffice/App/libreoffice/program/soffice.exe')
-    ];
+ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, format = 'PNG', scale = 1 }) => {
+  const loExe = findLibreOffice();
+  if (!loExe) {
+    throw new Error('未找到 LibreOffice；请先到 https://www.libreoffice.org/download 下载安装，或在设置里手动指定 soffice.exe 路径');
+  }
 
-    let loExe = loPaths.find(p => fs.existsSync(p));
-    if (!loExe) {
-      reject(new Error('未找到 LibreOffice，请先下载安装'));
-      return;
-    }
+  const fmtMap = { PNG: 'png', JPG: 'jpg', JPEG: 'jpg', PDF: 'pdf', SVG: 'svg' };
+  const loFormat = fmtMap[String(format).toUpperCase()] || 'png';
 
-    const outputPath = outputDir.replace(/\\/g, '/');
-    const args = [
-      '--headless',
-      '--convert-to', 'png',
-      '--outdir', outputPath,
-      inputPath
-    ];
+  // scale 在 headless 下用 Resolution (DPI) 表达；96 DPI = 1x
+  const dpi = Math.max(72, Math.round(96 * Number(scale) || 96));
+  const convertSpec = (loFormat === 'png' || loFormat === 'jpg')
+    ? loFormat + ':Resolution=' + dpi
+    : loFormat;
 
-    console.log('Running LibreOffice:', loExe, args.join(' '));
+  const finalOut = String(outputDir).replace(/\\/g, '/');
+  const args = [
+    '--headless',
+    '--nologo',
+    '--nofirststartwizard',
+    '--norestore',
+    '--convert-to', convertSpec,
+    '--outdir', finalOut,
+    inputPath
+  ];
 
-    const proc = spawn(loExe, args, { shell: true });
+  console.log('[LibreOffice]', loExe, args.join(' '));
+
+  return await new Promise((resolve, reject) => {
+    const proc = spawn(loExe, args, { shell: false, windowsHide: true });
     let stdout = '', stderr = '';
-
-    proc.stdout.on('data', d => stdout += d);
-    proc.stderr.on('data', d => stderr += d);
-
+    proc.stdout.on('data', d => stdout += d.toString('utf8'));
+    proc.stderr.on('data', d => stderr += d.toString('utf8'));
+    proc.on('error', err => reject(new Error('启动 LibreOffice 失败: ' + err.message)));
     proc.on('close', (code) => {
       if (code === 0) {
-        resolve({ success: true, output: outputPath });
+        const base = path.basename(inputPath, path.extname(inputPath));
+        const outFile = path.join(outputDir, base + '.' + loFormat);
+        resolve({ success: true, outputPath: outFile, format: loFormat });
       } else {
-        reject(new Error(stderr || `LibreOffice 转换失败，退出码: ${code}`));
+        reject(new Error((stderr || stdout).trim() || ('LibreOffice 退出码 ' + code)));
       }
     });
-
-    proc.on('error', err => reject(err));
   });
 });
 
-// 读取目录下的所有文件
+// 读取文件字节（供 renderer 解析 .docx 等使用）
+ipcMain.handle('fs:readFile', async (event, filePath) => {
+  try {
+    const buf = fs.readFileSync(filePath);
+    return { success: true, data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('fs:readDir', async (event, dirPath) => {
   try {
     const files = fs.readdirSync(dirPath);

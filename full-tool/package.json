@@ -11,7 +11,10 @@
     "electron:preview": "vite build && electron ."
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-vue-next": "^0.400.0",
+    "mammoth": "^1.12.0",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },
