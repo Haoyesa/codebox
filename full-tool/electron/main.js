@@ -221,21 +221,22 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
   console.log('[LibreOffice]', loExe, '[' + profileArg + ']', args.join(' '));
 
   return await new Promise((resolve, reject) => {
-    // LO bundles its DLLs next to soffice.exe. On Windows, soffice resolves
-    // its own install prefix via the *current working directory* of the
-    // spawned process, not via argv[0]. If we leave cwd at the app cwd the
-    // headless bootstrap fails with "Could not find platform independent
-    // libraries <prefix>". Pin cwd to the program dir and prepend it to PATH
     const loDir = path.dirname(loExe);
-    const proc = spawn(loExe, args, {
+    // The cwd-only fix doesn't bootstrap reliably on every Windows LO
+    // install (the install prefix lookup in cppuhelper/paths.cxx still bails
+    // out when the bootstrap.ini / registry / exe-path lookups miss). The
+    // robust Windows recipe is: explicitly prepend the program dir to PATH
+    // AND cd into it inside the same command line that runs soffice. Doing
+    // it via cmd.exe /c keeps the spawn args handling we already have and
+    // also gives LO a proper console-attached env.
+    const quoteIfNeeded = (v) => (/[s"&|<>^()]/.test(v)) ? '"' + v.replace(/"/g, '\\"') + '"' : v;
+    const inner = ['set', 'PATH=' + loDir + ';%PATH%', '&&',
+                   'cd', '/d', quoteIfNeeded(loDir), '&&',
+                   quoteIfNeeded(loExe)].concat(args.map(quoteIfNeeded)).join(' ');
+    const proc = spawn('cmd.exe', ['/d', '/s', '/c', inner], {
       shell: false,
       windowsHide: true,
-      cwd: loDir,
-      env: Object.assign({}, process.env, {
-        HOME: process.env.HOME || os.homedir(),
-        APPDATA: process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-        PATH: loDir + path.delimiter + (process.env.PATH || '')
-      })
+      windowsVerbatimArguments: true
     });
     let stdout = '', stderr = '';
     proc.stdout.on('data', d => stdout += d.toString('utf8'));
