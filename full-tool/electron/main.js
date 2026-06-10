@@ -117,11 +117,22 @@ ipcMain.handle('dialog:selectOutputDir', async () => {
 });
 
 // 查找 LibreOffice 可执行文件：先读用户配置覆盖，再试 where soffice.exe，再试常见安装路径
+// Return true only if `exe` lives in a real LO install dir
+// (one that ships the bundled runtime / uno bridge next to it).
+// Skips stubs like the Microsoft Store shim, which has no DLLs.
+function isRealLO(exe) {
+  try {
+    const dir = path.dirname(exe);
+    return ['soffice.bin', 'oosplash.exe', 'fundamentalrc', path.join('ure', 'bin')]
+      .some((rel) => fs.existsSync(path.join(dir, rel)));
+  } catch (_) { return false; }
+}
+
 function findLibreOffice() {
   const settingsPath = path.join(app.getPath('userData'), 'lo-path.txt');
   if (fs.existsSync(settingsPath)) {
     const p = fs.readFileSync(settingsPath, 'utf8').trim();
-    if (p && fs.existsSync(p)) return p;
+    if (p && fs.existsSync(p) && isRealLO(p)) return p;
   }
 
   if (process.platform === 'win32') {
@@ -130,8 +141,10 @@ function findLibreOffice() {
         encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
         windowsHide: true
       });
-      const first = out.split(/\r?\n/).map(x => x.trim()).find(Boolean);
-      if (first && fs.existsSync(first)) return first;
+      const hits = out.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+      for (const h of hits) {
+        if (fs.existsSync(h) && isRealLO(h)) return h;
+      }
     } catch (_) { /* not in PATH */ }
   }
 
@@ -142,7 +155,7 @@ function findLibreOffice() {
     '/Applications/LibreOffice.app/Contents/MacOS/soffice'
   ];
   for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
+    if (fs.existsSync(c) && isRealLO(c)) return c;
   }
   return null;
 }
@@ -183,7 +196,15 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     ? loFormat + ':Resolution=' + dpi
     : loFormat;
 
-  const finalOut = String(outputDir).replace(/\\/g, '/');
+  // Normalize both paths to forward-slash absolute form. LO on Windows
+  // misparses --outdir / input args when they contain backslashes mixed
+  // with spaces or non-ASCII characters (a frequent cause of the
+  // "impl_store ... 0x81a" half of the bootstrap error).
+  let finalOut = String(outputDir).replace(/\\/g, '/');
+  let finalIn = String(inputPath).replace(/\\/g, '/');
+  if (!path.isAbsolute(finalOut)) finalOut = path.resolve(finalOut).replace(/\\/g, '/');
+  if (!path.isAbsolute(finalIn)) finalIn = path.resolve(finalIn).replace(/\\/g, '/');
+  try { fs.mkdirSync(finalOut, { recursive: true }); } catch (_) {}
   const userProfile = path.join(os.tmpdir(), 'fulltool-lo-profile');
   try { fs.mkdirSync(userProfile, { recursive: true }); } catch (_) {}
   const profileArg = '-env:UserInstallation=file:///' + userProfile.replace(/\\/g, '/');
@@ -194,18 +215,28 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     '--norestore',
     '--convert-to', convertSpec,
     '--outdir', finalOut,
-    inputPath
+    finalIn
   ];
 
   console.log('[LibreOffice]', loExe, '[' + profileArg + ']', args.join(' '));
 
   return await new Promise((resolve, reject) => {
+    // LO bundles its DLLs next to soffice.exe. On Windows, soffice resolves
+    // its own install prefix via the *current working directory* of the
+    // spawned process, not via argv[0]. If we leave cwd at the app cwd the
+    // headless bootstrap fails with "Could not find platform independent
+    // libraries <prefix>". Pin cwd to the program dir and prepend it to PATH
+    // for good measure; also set URE_BOOTSTRAP as a belt-and-braces fallback.
+    const loDir = path.dirname(loExe);
     const proc = spawn(loExe, args, {
       shell: false,
       windowsHide: true,
+      cwd: loDir,
       env: Object.assign({}, process.env, {
         HOME: process.env.HOME || os.homedir(),
-        APPDATA: process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+        APPDATA: process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+        URE_BOOTSTRAP: 'vnd.sun.star.pathname:' + loDir.replace(/\\/g, '/') + '/fundamentalrc',
+        PATH: loDir + path.delimiter + (process.env.PATH || '')
       })
     });
     let stdout = '', stderr = '';
