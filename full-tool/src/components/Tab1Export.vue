@@ -472,7 +472,7 @@ async function startExport() {
       } else {
         if (!loAvailable) {
           state.skippedFiles.push(file.name);
-          window.showToast?.('跳过（非 .docx 且无 LibreOffice）：' + file.name, 'warn');
+          window.showToast?.(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
         } else {
           await window.electronAPI.libreOfficeConvert({
             inputPath: file.path,
@@ -497,15 +497,26 @@ async function startExport() {
   // 收尾汇总
   const failed = state.failedFiles.length;
   const skipped = state.skippedFiles.length;
+  // 按扩展名分组跳过文件
+  const skipByExt = {};
+  for (const name of state.skippedFiles) {
+    const ext = (name.split('.').pop() || '?').toLowerCase();
+    skipByExt[ext] = (skipByExt[ext] || 0) + 1;
+  }
+  const skipExtSummary = Object.keys(skipByExt).length
+    ? '（' + Object.entries(skipByExt).map(([e, n]) => e + ' ×' + n).join('，') + '）'
+    : '';
+  const skipHint = skipped > 0 ? ' — 需 LibreOffice，可点 Tab1 底部下载或手动指定 soffice.exe' : '';
+
   if (state.cancelRequested) {
-    state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + '）';
+    state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + skipExtSummary + '）';
     window.showToast?.('导出已取消', 'warn');
   } else {
     let msg = '导出完成：成功 ' + successCount;
     if (failed > 0) msg += '，失败 ' + failed;
-    if (skipped > 0) msg += '，跳过 ' + skipped;
-    state.statusText = msg;
-    window.showToast?.(msg, failed > 0 ? 'warn' : 'success');
+    if (skipped > 0) msg += '，跳过 ' + skipped + skipExtSummary;
+    state.statusText = msg + skipHint;
+    window.showToast?.(msg, failed > 0 ? 'warn' : (skipped > 0 ? 'warn' : 'success'));
   }
   state.isExporting = false;
   state.currentFile = '';
