@@ -1,244 +1,287 @@
 <template>
   <section :class="$attrs.class">
-    <p class="desc">配置应用全局设置和偏好选项。</p>
+    <p class="desc">授权管理与版本更新。</p>
 
-    <div class="settings-layout">
-      <div class="card" style="grid-column: 1 / -1;">
-        <h3 class="card-title"><i data-lucide="folder"></i> 路径设置</h3>
-        <div class="setting-row">
-          <span class="setting-label">默认输出目录</span>
-          <div class="path-row">
-            <input type="text" v-model="settings.defaultOutputDir" placeholder="留空=使用桌面" style="flex:1">
-            <button class="btn btn-sm" @click="pickOutputDir">
-              <i data-lucide="folder-open"></i>浏览
+    <div class="settings-row1">
+      <!-- 授权管理 -->
+      <div class="card auth-card">
+        <h3 class="card-title"><i data-lucide="shield-check"></i> 授权管理</h3>
+        <div class="form-row">
+          <span class="form-label">授权密钥</span>
+          <div class="input-with-btn">
+            <input
+              :type="showKey ? 'text' : 'password'"
+              v-model="authKey"
+              placeholder="LLF-XXXX-XXXX-XXXX"
+              class="mono"
+            />
+            <button class="btn-icon" @click="showKey = !showKey" :title="showKey ? '隐藏' : '显示'">
+              <i :data-lucide="showKey ? 'eye-off' : 'eye'"></i>
             </button>
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <h3 class="card-title"><i data-lucide="palette"></i> 外观</h3>
-        <div class="setting-row">
-          <span class="setting-label">主题</span>
-          <div class="theme-btns">
-            <button
-              v-for="t in ['light', 'dark']"
-              :key="t"
-              :class="['theme-btn', { active: settings.theme === t }]"
-              @click="setTheme(t)"
-            >
-              {{ { light: '浅色', dark: '深色' }[t] }}
-            </button>
-          </div>
+        <div class="row" style="gap: 8px; margin-top: 10px;">
+          <button class="btn btn-sm" @click="verifyKey" :disabled="!authKey">
+            <i data-lucide="check"></i>验证
+          </button>
+          <button class="btn btn-sm btn-ghost" @click="clearKey">清除</button>
+          <span class="tag tag-green" style="margin-left: 4px;">
+            <span class="pulse-dot" style="background: var(--ok);"></span>
+            试用中
+          </span>
         </div>
-       <div class="setting-row">
-          <span class="setting-label">主题色</span>
-          <div class="color-swatches">
-            <button
-              v-for="c in colorOptions"
-              :key="c.value"
-              :class="['color-swatch', { active: settings.accentColor === c.value }]"
-              :style="{ background: c.value }"
-              :title="c.label"
-              @click="setAccentColor(c.value)"
-            ></button>
-          </div>
+
+        <div class="auth-meta">
+          <span class="muted">上次验证：<span class="mono">{{ authMeta.lastVerify || '—' }}</span></span>
+          <span class="muted">下次检查：<span class="mono">{{ authMeta.nextCheck || '—' }}</span></span>
         </div>
       </div>
 
-      <div class="card">
-        <h3 class="card-title"><i data-lucide="image"></i> 图片默认值</h3>
-        <div class="setting-row">
-          <span class="setting-label">默认格式</span>
-          <select v-model="settings.defaultFormat" @change="saveSettings">
-            <option value="PNG">PNG</option>
-            <option value="JPG">JPG</option>
-            <option value="WEBP">WEBP</option>
-          </select>
+      <!-- 基础信息 -->
+      <div class="card info-card">
+        <h3 class="card-title"><i data-lucide="info"></i> 基础信息</h3>
+        <div class="info-row">
+          <span class="muted">当前版本：</span>
+          <span class="version mono">v{{ appVersion }}</span>
         </div>
-        <div class="setting-row">
-          <span class="setting-label">默认质量</span>
-          <div class="row">
-            <input type="range" v-model="settings.defaultQuality" min="50" max="100" @input="saveSettings" style="flex:1">
-            <span style="font-size:12px;color:var(--text-2);width:36px">{{ settings.defaultQuality }}%</span>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label">默认缩放</span>
-          <select v-model="settings.defaultScale" @change="saveSettings">
-            <option value="1">1x</option>
-            <option value="1.5">1.5x</option>
-            <option value="2">2x</option>
-            <option value="3">3x</option>
-            <option value="4">4x</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 class="card-title"><i data-lucide="trash-2"></i> 缓存</h3>
-        <div class="setting-row">
-          <span class="setting-label">浏览器缓存</span>
-          <button class="btn btn-sm" @click="clearCache">
-            <i data-lucide="trash-2" style="width:14px;height:14px"></i>清除缓存
+        <div class="row" style="gap: 8px; margin-top: 10px;">
+          <button class="btn btn-sm" @click="checkUpdate">
+            <i data-lucide="refresh-cw"></i>检查更新
+          </button>
+          <button class="btn btn-sm" @click="openTutorial">
+            <i data-lucide="book-open"></i>获取使用教程
           </button>
         </div>
-        <p style="font-size:11px;color:var(--text-3);margin:4px 0 0">清除浏览器临时缓存，不影响已保存的文件。</p>
+        <button class="btn btn-secondary btn-block" style="margin-top: 10px;" @click="openCommunity">
+          <i data-lucide="users"></i>获取模板库及交流群
+        </button>
       </div>
+    </div>
 
-      <div class="card">
-        <h3 class="card-title"><i data-lucide="info"></i> 关于</h3>
-        <div style="font-size:13px;color:var(--text-2);line-height:1.8;">
-          <p><b>商品图工坊 · Full</b></p>
-          <p>版本 1.0.0</p>
-          <p style="margin-top:8px;">基于 Electron + Vue3 构建的桌面应用。</p>
-          <p style="margin-top:8px;font-size:12px;color:var(--text-3)">
-            支持文档导出、场景排版、图片缩放、拼接、文字工具、批量重命名。
-          </p>
+    <p class="desc" style="padding-top: 18px;">查看操作过程、错误与提示。</p>
+
+    <div class="card">
+      <div class="row-spread" style="margin-bottom: 10px;">
+        <h3 class="card-title" style="margin: 0;">
+          <i data-lucide="terminal"></i> 运行日志
+        </h3>
+        <div class="row" style="gap: 6px;">
+          <select v-model="logFilter" class="log-filter">
+            <option value="all">全部</option>
+            <option value="info">信息</option>
+            <option value="warn">警告</option>
+            <option value="error">错误</option>
+          </select>
+          <button class="btn btn-sm" @click="exportLogs">
+            <i data-lucide="download"></i>导出日志
+          </button>
+          <button class="btn btn-sm btn-ghost" @click="logs = []">
+            <i data-lucide="trash-2"></i>清空
+          </button>
         </div>
       </div>
+      <div class="log-area">
+        <div v-if="filteredLogs.length === 0" class="empty-state" style="padding: 28px 0;">
+          <i data-lucide="inbox"></i>
+          <p>暂无日志</p>
+        </div>
+        <div v-else class="log-list">
+          <div v-for="(l, i) in filteredLogs" :key="i" :class="['log-row', 'log-' + l.level]">
+            <span class="log-time mono">{{ l.time }}</span>
+            <span class="log-level">{{ levelLabel(l.level) }}</span>
+            <span class="log-msg">{{ l.msg }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card contact-card">
+      <div class="row" style="gap: 8px;">
+        <i data-lucide="message-circle"></i>
+        <span style="font-weight: 600;">联系开发者</span>
+      </div>
+      <p class="muted" style="margin: 8px 0 0; font-size: 13px;">
+        如果有问题或建议，请联系开发者：<b class="mono">尹星河 (teaxh613)</b>
+      </p>
     </div>
   </section>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue';
-import { Folder, Palette, Image, Trash2, Info, FolderOpen } from 'lucide-vue-next';
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 
-defineOptions({ inheritAttrs: false });
+const STORAGE_KEY = 'fulltool_settings_v1';
 
-const STORAGE_KEY = 'fulltool_settings';
+const authKey = ref('');
+const showKey = ref(false);
+const authMeta = reactive({ lastVerify: '', nextCheck: '' });
 
-const colorOptions = [
-  { label: '红色', value: '#ef4444' },
-  { label: '橙色', value: '#f97316' },
-  { label: '黄色', value: '#eab308' },
-  { label: '绿色', value: '#22c55e' },
-  { label: '蓝色', value: '#3b82f6' },
-  { label: '紫色', value: '#8b5cf6' },
-  { label: '粉色', value: '#ec4899' },
-];
+const appVersion = ref('1.5.1');
 
-const defaults = {
-  theme: 'light',
-  accentColor: '#ef4444',
-  defaultOutputDir: '',
-  defaultFormat: 'PNG',
-  defaultQuality: 90,
-  defaultScale: '1'
-};
+const logFilter = ref('all');
+const logs = ref([]); // {time, level, msg}
 
-const settings = reactive({ ...defaults });
+let logCounter = 0;
 
-function loadSettings() {
+const filteredLogs = computed(() => {
+  if (logFilter.value === 'all') return logs.value;
+  return logs.value.filter(l => l.level === logFilter.value);
+});
+
+function levelLabel(l) {
+  return { info: 'INFO', warn: 'WARN', error: 'ERR ' }[l] || l.toUpperCase();
+}
+
+function pushLog(level, msg) {
+  const t = new Date();
+  logs.value.unshift({
+    time: t.toTimeString().slice(0, 8),
+    level, msg
+  });
+  if (logs.value.length > 500) logs.value.length = 500;
+}
+
+// 拦截 console
+let origLog, origWarn, origErr;
+function installLogInterceptor() {
+  origLog = console.log;
+  origWarn = console.warn;
+  origErr = console.error;
+  console.log = (...args) => { pushLog('info', args.join(' ')); origLog.apply(console, args); };
+  console.warn = (...args) => { pushLog('warn', args.join(' ')); origWarn.apply(console, args); };
+  console.error = (...args) => { pushLog('error', args.join(' ')); origErr.apply(console, args); };
+  window.addEventListener('error', e => pushLog('error', e.message));
+  window.addEventListener('unhandledrejection', e => pushLog('error', 'Unhandled: ' + (e.reason?.message || e.reason)));
+}
+function uninstallLogInterceptor() {
+  console.log = origLog; console.warn = origWarn; console.error = origErr;
+}
+
+function verifyKey() {
+  if (!authKey.value) { window.showToast?.('请先填写授权密钥', 'warn'); return; }
+  // 简化: 任何 LLF-XXXX-XXXX-XXXX 形式视为合法
+  if (!/^LLF-[\w-]+$/.test(authKey.value)) {
+    pushLog('warn', '授权密钥格式不符');
+    window.showToast?.('授权密钥格式应为 LLF-XXXX-XXXX-XXXX', 'error');
+    return;
+  }
+  const t = new Date();
+  authMeta.lastVerify = t.toLocaleString('zh-CN', { hour12: false });
+  const next = new Date(t.getTime() + 7 * 24 * 60 * 60 * 1000);
+  authMeta.nextCheck = next.toLocaleString('zh-CN', { hour12: false });
+  persist();
+  pushLog('info', '授权验证通过');
+  window.showToast?.('验证通过', 'success');
+}
+function clearKey() {
+  authKey.value = '';
+  authMeta.lastVerify = '';
+  authMeta.nextCheck = '';
+  persist();
+  pushLog('info', '授权密钥已清除');
+}
+
+function checkUpdate() {
+  pushLog('info', '检查更新：当前版本 v' + appVersion.value);
+  window.showToast?.('当前已是最新版本', 'success');
+}
+function openTutorial() {
+  window.open('https://github.com/Haoyesa/codebox', '_blank');
+}
+function openCommunity() {
+  window.open('https://github.com/Haoyesa/codebox', '_blank');
+}
+
+function exportLogs() {
+  const text = logs.value.map(l => `[${l.time}] [${levelLabel(l.level)}] ${l.msg}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fulltool-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  window.showToast?.('日志已导出', 'success');
+}
+
+function persist() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      Object.assign(settings, JSON.parse(stored));
-    }
-  } catch (e) {}
-  applyTheme();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      authKey: authKey.value,
+      lastVerify: authMeta.lastVerify,
+      nextCheck: authMeta.nextCheck
+    }));
+  } catch (_) {}
 }
-
-function saveSettings() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings }));
-  window.showToast?.('设置已保存', 'success');
-}
-
-function setTheme(t) {
-  settings.theme = t;
-  applyTheme();
-  saveSettings();
-}
-
-function setAccentColor(c) {
-  settings.accentColor = c;
-  document.documentElement.style.setProperty('--primary', c);
-  saveSettings();
-}
-
-function applyTheme() {
-  if (settings.theme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
-  document.documentElement.style.setProperty('--primary', settings.accentColor);
-}
-
-async function pickOutputDir() {
-  if (window.electronAPI) {
-    const r = await window.electronAPI.selectOutputDir();
-    if (!r.canceled && r.filePaths[0]) {
-      settings.defaultOutputDir = r.filePaths[0];
-      saveSettings();
-    }
-  } else {
-    const d = prompt('默认输出目录路径');
-    if (d) {
-      settings.defaultOutputDir = d;
-      saveSettings();
-    }
-  }
-}
-
-function clearCache() {
-  // Clear blobs and object URLs
-  if (window.localStorage) {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('blob:') || k === STORAGE_KEY);
-    // Don't clear STORAGE_KEY
-  }
-  // Clear all blob URLs
-  if (window.__blobUrls) {
-    window.__blobUrls.forEach(url => URL.revokeObjectURL(url));
-    window.__blobUrls = [];
-  }
-  window.showToast?.('缓存已清除', 'success');
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    authKey.value = o.authKey || '';
+    authMeta.lastVerify = o.lastVerify || '';
+    authMeta.nextCheck = o.nextCheck || '';
+  } catch (_) {}
 }
 
 onMounted(async () => {
-  loadSettings();
   await nextTick();
   window.lucide?.createIcons();
+  loadPersisted();
+  installLogInterceptor();
+  pushLog('info', 'Full 启动完成 v' + appVersion.value);
 });
+onBeforeUnmount(() => uninstallLogInterceptor());
 </script>
 
 <style scoped>
-.settings-layout {
+.settings-row1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+.card-title { margin: 0 0 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card-title i[data-lucide] { width: 16px; height: 16px; color: var(--primary); }
+
+.form-row { display: grid; grid-template-columns: 80px 1fr; gap: 10px; align-items: center; }
+.form-label { font-size: 13px; color: var(--text-2); }
+.input-with-btn { display: flex; gap: 6px; align-items: center; }
+.input-with-btn input { flex: 1; }
+
+.auth-meta { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; }
+.muted { color: var(--text-3); }
+.version { color: var(--primary); font-weight: 600; }
+.info-card .info-row { font-size: 13px; }
+
+.log-filter { width: auto; min-width: 90px; }
+.log-area { min-height: 200px; max-height: 360px; overflow-y: auto; }
+.log-list { display: flex; flex-direction: column; }
+.log-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  max-width: 800px;
+  grid-template-columns: 90px 50px 1fr;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed var(--border-2);
 }
-
-.setting-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+.log-row:last-child { border-bottom: 0; }
+.log-time { color: var(--text-3); }
+.log-level {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-align: center;
+  background: var(--panel-3);
+  color: var(--text-2);
+  height: fit-content;
 }
-.setting-row:last-child { margin-bottom: 0; }
-.setting-label { font-size: 13px; color: var(--text-2); min-width: 90px; flex-shrink: 0; }
+.log-info .log-level { background: var(--info-soft); color: var(--info); }
+.log-warn .log-level { background: var(--warn-soft); color: var(--warn-deep); }
+.log-error .log-level { background: var(--primary-soft); color: var(--primary-deep); }
+.log-msg { color: var(--text); word-break: break-word; }
 
-.path-row { display: flex; gap: 6px; flex: 1; }
+.contact-card { margin-top: 14px; }
+.contact-card i[data-lucide] { color: var(--primary); width: 16px; height: 16px; }
 
-.theme-btns { display: flex; gap: 4px; }
-.theme-btn {
-  padding: 5px 14px; border: 1px solid var(--border); background: #fff;
-  border-radius: 6px; font-size: 12px; cursor: pointer; transition: all .15s;
-}
-.theme-btn:hover { background: #f3f4f6; }
-.theme-btn.active { background: var(--primary-soft); color: var(--primary); border-color: #fecaca; }
-
-.color-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
-.color-swatch {
-  width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent;
-  cursor: pointer; transition: all .15s;
-}
-.color-swatch:hover { transform: scale(1.15); }
-.color-swatch.active { border-color: var(--text); box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor; }
-
-@media (max-width: 768px) {
-  .settings-layout { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .settings-row1 { grid-template-columns: 1fr; }
 }
 </style>

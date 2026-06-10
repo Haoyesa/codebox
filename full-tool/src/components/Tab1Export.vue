@@ -175,9 +175,9 @@
         </div>
       </div>
     </div>
-    <div v-else-if="loPath" class="meta meta-lo" :title="loPath">
+    <div v-else-if="state.loPath" class="meta meta-lo" :title="state.loPath">
       <i data-lucide="check-circle" style="width:12px;height:12px;color:var(--ok)"></i>
-      LibreOffice：{{ truncatePath(loPath) }}
+      LibreOffice：{{ truncatePath(state.loPath) }}
       <button class="btn btn-ghost btn-sm" style="margin-left: 6px;" @click="pickLOPath">更换</button>
     </div>
 
