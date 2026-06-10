@@ -220,6 +220,24 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
 
   console.log('[LibreOffice]', loExe, '[' + profileArg + ']', args.join(' '));
 
+  // Sanity-fill the env vars cmd/soffice tend to look up on Windows.
+  // When our parent process is something stripped-down (e.g. VS Code
+  // debug, nvm windows, etc.) the child sees an empty USERPROFILE / TMP
+  // and the bootstrap or profile write goes sideways.
+  const sysRoot = process.env.SystemRoot || process.env.windir || 'C:\\Windows';
+  const sys32 = path.join(sysRoot, 'System32');
+  const env = Object.assign({}, process.env, {
+    HOME: os.homedir(),
+    USERPROFILE: os.homedir(),
+    APPDATA: process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+    LOCALAPPDATA: process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'),
+    TMP: os.tmpdir(),
+    TEMP: os.tmpdir(),
+    SystemRoot: sysRoot,
+    windir: sysRoot,
+    ComSpec: process.env.ComSpec || path.join(sys32, 'cmd.exe')
+  });
+
   return await new Promise((resolve, reject) => {
     const loDir = path.dirname(loExe);
     // The cwd-only fix doesn't bootstrap reliably on every Windows LO
@@ -235,13 +253,16 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     // `set PATH=C:\\Program` (everything past the first space was
     // dropped) — which is why we were getting exit code 1.
     const q = (v) => '"' + String(v).replace(/"/g, '\\"') + '"';
-    const inner = ['set', 'PATH=' + loDir + ';%PATH%', '&&',
+    const cmdLine = ['set', 'PATH=' + loDir + ';%PATH%', '&&',
                    'cd', '/d', q(loDir), '&&',
                    q(loExe)].concat(args.map(q)).join(' ');
-    const proc = spawn('cmd.exe', ['/d', '/s', '/c', inner], {
+    const proc = spawn('cmd.exe', ['/d', '/s', '/c', cmdLine], {
       shell: false,
       windowsHide: true,
-      windowsVerbatimArguments: true
+      windowsVerbatimArguments: true,
+      env: Object.assign({}, env, {
+        PATH: loDir + path.delimiter + (env.PATH || '')
+      })
     });
     let stdout = '', stderr = '';
     proc.stdout.on('data', d => stdout += d.toString('utf8'));
@@ -259,7 +280,7 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
           : ('退出码 ' + code +
              '（0xC0000409 常见于 DLL 版本冲突、杀毒拦截、或 VC++ 运行库缺失；' +
              '试一下关闭杀毒、用 LO 安装包里的 Repair 修一下）');
-        reject(new Error('LibreOffice ' + hint + ' | cmd: ' + loExe + ' ' + args.join(' ')));
+        reject(new Error('LibreOffice ' + hint + ' | cmd: ' + cmdLine));
       }
     });
   });
