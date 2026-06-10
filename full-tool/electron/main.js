@@ -290,7 +290,23 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
       if (code === 0) {
         const base = path.basename(inputPath, path.extname(inputPath));
         const outFile = path.join(outputDir, base + '.' + loFormat);
-        resolve({ success: true, outputPath: outFile, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
+        // Sanity check: LO exited 0 but the user has been hitting
+        // InvalidPDFException (empty) downstream, which means the
+        // file on disk is 0 bytes. Verify before claiming success so
+        // we can surface a useful error instead of letting pdfjs
+        // explode in the renderer.
+        if (!fs.existsSync(outFile) || fs.statSync(outFile).size === 0) {
+          const size = fs.existsSync(outFile) ? fs.statSync(outFile).size : -1;
+          reject(new Error(
+            'LibreOffice 退出码 0 但输出文件不存在或为 0 字节 (' + size + ' bytes, ' +
+            'expected path: ' + outFile + ')。常见原因：输出目录无写权限 / 杀软拦截写入 / ' +
+            '输入文件 LO 不识别 / 上一次 LO 异常退出导致 user profile 锁未释放 ' +
+            '(删除 C:/Users/25147/AppData/Local/Temp/fulltool-lo-profile 后重试)。' +
+            ' | cmd: ' + cmdLine
+          ));
+          return;
+        }
+        resolve({ success: true, outputPath: outFile, fileSize: fs.statSync(outFile).size, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
       } else {
         const tail = (stderr || stdout || '').trim();
         const hint = tail
