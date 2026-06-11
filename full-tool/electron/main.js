@@ -204,9 +204,11 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
   if (!path.isAbsolute(finalOut)) finalOut = path.resolve(finalOut).replace(/\\/g, '/');
   if (!path.isAbsolute(finalIn)) finalIn = path.resolve(finalIn).replace(/\\/g, '/');
   try { fs.mkdirSync(finalOut, { recursive: true }); } catch (_) {}
-  const userProfile = path.join(os.tmpdir(), 'fulltool-lo-profile');
-  try { fs.mkdirSync(userProfile, { recursive: true }); } catch (_) {}
-  const profileArg = '-env:UserInstallation=file:///' + userProfile.replace(/\\/g, '/');
+  // Unique profile dir per invocation. Reusing one across runs is
+  // what was making LO silently write 0-byte files on Windows: a
+  // crashed prior run leaves a user.lock in the profile, and the
+  // next run sees the lock, bails at bootstrap, exits 0, writes
+
   const args = [profileArg,
     '--headless',
     '--nologo',
@@ -290,13 +292,25 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
       if (code === 0) {
         const base = path.basename(inputPath, path.extname(inputPath));
         const outFile = path.join(outputDir, base + '.' + loFormat);
-        // Sanity check: LO exited 0 but the user has been hitting
-        // InvalidPDFException (empty) downstream, which means the
-        // file on disk is 0 bytes. Verify before claiming success so
-        // we can surface a useful error instead of letting pdfjs
-        // explode in the renderer.
-        if (!fs.existsSync(outFile) || fs.statSync(outFile).size === 0) {
-          const size = fs.existsSync(outFile) ? fs.statSync(outFile).size : -1;
+        // Sanity check with retry. On Windows the file can be 0 bytes
+        // for a few ms after LO exits if the write was buffered; we
+        // also see it when the profile is locked. Wait briefly then
+        // re-check; if still empty, that's a real failure.
+        const checkAfterDelay = (attempt) => new Promise((resolveChk) => {
+          setTimeout(() => {
+            try {
+              if (fs.existsSync(outFile)) {
+                const sz = fs.statSync(outFile).size;
+                if (sz > 0) return resolveChk(sz);
+              }
+            } catch (_) {}
+            if (attempt < 4) return resolveChk(checkAfterDelay(attempt + 1));
+            resolveChk(0);
+          }, 200);
+        });
+        checkAfterDelay(0).then((okSize) => {
+          if (okSize === 0) {
+          const size = okSize; // 0 means file still 0 bytes after retries
           reject(new Error(
             'LibreOffice 退出码 0 但输出文件不存在或为 0 字节 (' + size + ' bytes, ' +
             'expected path: ' + outFile + ')。常见原因：输出目录无写权限 / 杀软拦截写入 / ' +
@@ -304,9 +318,10 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
             '(删除 C:/Users/25147/AppData/Local/Temp/fulltool-lo-profile 后重试)。' +
             ' | cmd: ' + cmdLine
           ));
-          return;
-        }
-        resolve({ success: true, outputPath: outFile, fileSize: fs.statSync(outFile).size, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
+            return;
+          }
+          resolve({ success: true, outputPath: outFile, fileSize: okSize, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
+        });
       } else {
         const tail = (stderr || stdout || '').trim();
         const hint = tail
