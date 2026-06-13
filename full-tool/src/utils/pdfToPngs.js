@@ -1,4 +1,4 @@
-﻿// Render a PDF file to one PNG per page using pdfjs-dist + Canvas.
+// Render a PDF file to one PNG per page using pdfjs-dist + Canvas.
 // Pure JS, no native deps. Used by Tab1Export when the user wants an
 // image format but the underlying file is .pptx/.doc (LO only produces
 // PDF, we do the PNG conversion client-side).
@@ -65,6 +65,6 @@ export async function pdfToPngs({ pdfPath, pdfBytes, scale = 1 }) {
     // Release the page so memory doesn't pile up for big decks.
     page.cleanup();
   }
-  await doc.destroy();
+  await doc.cleanup();
   return out;
 }
