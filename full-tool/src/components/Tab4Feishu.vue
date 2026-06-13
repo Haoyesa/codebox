@@ -197,14 +197,15 @@ async function startUpload() {
     const allImages = [];
     for (const f of folders.value) {
       if (!f.path) continue;
-      const r = await window.electronAPI.readDir(f.path);
+      // Walk recursively when the user opted in; the main process skips hidden/system dirs
+// and limits depth to 8. Pass an extension filter so we never have to post-filter in JS.
+const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, extensions: ['png','jpg','jpeg','webp','gif','bmp'] });
       if (!r.success) {
         log('err', `读取目录失败：${f.path} - ${r.error}`);
         continue;
       }
-      const exts = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
-      const list = r.files.filter(name => exts.includes(name.split('.').pop().toLowerCase()));
-      list.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
+      // main process already filtered by extension; just sort.
+      const list = r.files.slice().sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
       for (const name of list) {
         allImages.push({ folder: f, name, path: f.path.replace(/[\\/]+$/, '') + '/' + name });
       }
@@ -258,13 +259,10 @@ async function startUpload() {
         if (abortFlag) break;
         const img = row.images[k];
         try {
-          // a. 读文件 → base64
+          // a. 读文件 (直接发 Blob, 不再绕 base64)
           const fr = await window.electronAPI.readFile(img.path);
           if (!fr.success) throw new Error(fr.error);
           const bytes = new Uint8Array(fr.data);
-          let binary = '';
-          for (let b = 0; b < bytes.byteLength; b++) binary += String.fromCharCode(bytes[b]);
-          const base64 = btoa(binary);
 
           // b. 调 Feishu upload_attachment API
           const form = new FormData();

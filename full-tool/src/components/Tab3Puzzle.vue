@@ -433,6 +433,7 @@ async function pickBg() {
   const ext = (filePath.split('.').pop() || 'png').toLowerCase();
   const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
   const blob = new Blob([fr.data], { type: mime });
+  if (canvas.bgImg) try { URL.revokeObjectURL(canvas.bgImg); } catch (_) {}
   canvas.bgImg = URL.createObjectURL(blob);
 }
 
@@ -536,6 +537,7 @@ watch(images, () => {
           const ext = (first.path.split('.').pop() || 'png').toLowerCase();
           const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
           const blob = new Blob([fr.data], { type: mime });
+          if (emptySlot.src) try { URL.revokeObjectURL(emptySlot.src); } catch (_) {}
           emptySlot.src = URL.createObjectURL(blob);
         }
         emptySlot._srcLoading = false;

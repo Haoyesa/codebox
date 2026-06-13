@@ -350,10 +350,37 @@ ipcMain.handle('fs:readFile', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('fs:readDir', async (event, dirPath) => {
+ipcMain.handle('fs:readDir', async (event, dirPath, options) => {
   try {
-    const files = fs.readdirSync(dirPath);
-    return { success: true, files };
+    const recursive = !!(options && options.recursive);
+    if (!recursive) {
+      const files = fs.readdirSync(dirPath);
+      return { success: true, files };
+    }
+    // Recursive walk; returns names of files matching the optional extension filter.
+    const out = [];
+    const exts = (options && options.extensions || []).map(s => String(s).toLowerCase());
+    const skip = new Set(['node_modules', '.git', '$RECYCLE.BIN', 'System Volume Information']);
+    function walk(dir, depth) {
+      if (depth > 8) return;
+      let entries;
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
+      catch (_) { return; }
+      for (const ent of entries) {
+        if (skip.has(ent.name)) continue;
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) { walk(full, depth + 1); continue; }
+        if (!ent.isFile()) continue;
+        if (exts.length) {
+          const dot = ent.name.lastIndexOf('.');
+          const ext = dot >= 0 ? ent.name.slice(dot + 1).toLowerCase() : '';
+          if (!exts.includes(ext)) continue;
+        }
+        out.push(ent.name);
+      }
+    }
+    walk(dirPath, 0);
+    return { success: true, files: out };
   } catch (err) {
     return { success: false, error: err.message };
   }

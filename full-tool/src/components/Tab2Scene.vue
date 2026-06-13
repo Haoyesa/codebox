@@ -535,10 +535,13 @@ function onOverlayFile(e) {
 }
 
 function clearBase() {
+  // clear base only - keep overlay (and the placement state we built for it)
   baseImg.value = null;
-  overlayImg.value = null;
   baseName.value = '';
-  overlayName.value = '';
+  baseWidth.value = 0;
+  baseHeight.value = 0;
+  step.value = 1;
+  statusText.value = statusMap[1];
 }
 
 function clearOverlay() {

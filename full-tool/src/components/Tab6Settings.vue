@@ -122,7 +122,6 @@ const appVersion = ref('1.5.1');
 const logFilter = ref('all');
 const logs = ref([]); // {time, level, msg}
 
-let logCounter = 0;
 
 const filteredLogs = computed(() => {
   if (logFilter.value === 'all') return logs.value;
