@@ -24,7 +24,8 @@
       <Tab3Puzzle :class="['page', { active: currentTab === 'p3' }]" />
       <Tab4Feishu :class="['page', { active: currentTab === 'p4' }]" />
       <Tab5Xhs :class="['page', { active: currentTab === 'p5' }]" />
-      <Tab6Settings :class="['page', { active: currentTab === 'p6' }]" />
+      <Tab6XhsGen :class="['page', { active: currentTab === 'p6' }]" />
+      <Tab6Settings :class="['page', { active: currentTab === 'p7' }]" />
     </main>
 
     <!-- Toast notification -->
@@ -43,6 +44,7 @@ import Tab2Scene from './components/Tab2Scene.vue';
 import Tab3Puzzle from './components/Tab3Puzzle.vue';
 import Tab4Feishu from './components/Tab4Feishu.vue';
 import Tab5Xhs from './components/Tab5Xhs.vue';
+import Tab6XhsGen from './components/Tab6XhsGen.vue';
 import Tab6Settings from './components/Tab6Settings.vue';
 
 // Tab 定义（对齐截图）
@@ -52,7 +54,8 @@ const tabs = [
   { id: 'p3', label: '百变拼图排版', icon: 'layout-grid' },
   { id: 'p4', label: '飞书一键上传', icon: 'upload-cloud' },
   { id: 'p5', label: '小红书商品下载', icon: 'shopping-bag' },
-  { id: 'p6', label: '设置', icon: 'settings' }
+  { id: 'p6', label: '小红书爆款素材', icon: 'flame' },
+  { id: 'p7', label: '设置', icon: 'settings' }
 ];
 
 const currentTab = ref('p1');
