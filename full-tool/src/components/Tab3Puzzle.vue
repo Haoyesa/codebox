@@ -125,8 +125,9 @@
       <div class="puzzle-main">
         <div class="canvas-toolbar">
           <div class="row" style="gap: 8px;">
-            <span class="template-pill">
-              拼图1
+            <span class="template-pill" :class="{ dirty: isDirty }">
+              {{ currentTemplate || '未选择模板' }}
+              <span v-if="isDirty" class="pill-dot" title="有未保存的改动"></span>
               <button class="pill-x" @click="deleteCurrentTemplate" title="关闭模板">×</button>
             </span>
           </div>
@@ -137,7 +138,20 @@
             <select v-model="currentTemplate" class="tpl-select">
               <option v-for="t in templates" :key="t" :value="t">{{ t || '空模板' }}</option>
             </select>
-            <button class="btn-icon" @click="canvasMenu"><i data-lucide="more-horizontal"></i></button>
+            <div class="menu-anchor" ref="canvasMenuAnchorRef">
+              <button class="btn-icon" @click="canvasMenu"><i data-lucide="more-horizontal"></i></button>
+              <div v-if="canvasMenuOpen" class="menu-pop" @click.stop>
+                <button class="menu-item" @click="fitToView"><i data-lucide="maximize-2"></i><span>适应窗口</span></button>
+                <button class="menu-item" :disabled="!selectedId" @click="duplicateSelected"><i data-lucide="copy"></i><span>复制选中</span></button>
+                <button class="menu-item" :disabled="!selectedId" @click="bringToFront"><i data-lucide="bring-to-front"></i><span>置于顶层</span></button>
+                <button class="menu-item" :disabled="!selectedId" @click="sendToBack"><i data-lucide="send-to-back"></i><span>置于底层</span></button>
+                <div class="menu-divider"></div>
+                <button class="menu-item" @click="clearAllElements"><i data-lucide="trash-2"></i><span>清空画布</span></button>
+                <div class="menu-divider"></div>
+                <button class="menu-item" @click="exportTemplateJson"><i data-lucide="download"></i><span>导出 JSON</span></button>
+                <button class="menu-item" @click="importTemplateJson"><i data-lucide="upload"></i><span>导入 JSON</span></button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -228,6 +242,29 @@
         </div>
       </div>
     </div>
+
+    <!-- 预览弹窗 -->
+    <Teleport to="body">
+      <div v-if="showPreviewModal" class="modal-backdrop" @click.self="closePreview">
+        <div class="modal modal-preview" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <h4 class="modal-title">预览</h4>
+            <span class="muted" style="font-size: 12px;">单文件夹取首张，多文件夹按规则取第 0 张</span>
+            <button class="btn-icon modal-close" @click="closePreview" title="关闭（ESC）"><i data-lucide="x"></i></button>
+          </div>
+          <div class="modal-body preview-body">
+            <img v-if="previewUrl" :src="previewUrl" class="preview-img" alt="preview" />
+          </div>
+          <div class="modal-foot">
+            <span class="muted mono" style="font-size: 11px;">{{ canvas.width }} × {{ canvas.height }}</span>
+            <div class="row" style="gap: 8px;">
+              <button class="btn btn-sm" @click="closePreview">关闭</button>
+              <a v-if="previewUrl" :href="previewUrl" download="预览.png" class="btn btn-sm btn-primary">下载预览</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -267,6 +304,13 @@ const images = computed(() => {
 });
 const outputDir = ref('');
 
+// preview modal state
+const previewUrl = ref('');
+const showPreviewModal = ref(false);
+
+// canvas menu state
+const canvasMenuOpen = ref(false);
+
 // generation state
 const isGenerating = ref(false);
 const abortGen = ref(false);
@@ -274,10 +318,40 @@ const genDone = ref(0);
 const genTotal = ref(0);
 const genStatus = ref('');
 
-// 模板
+// 模板 (names list + per-name data)
 const TEMPLATE_KEY = 'fulltool_puzzle_templates';
+const TEMPLATE_DATA_KEY = 'fulltool_puzzle_template_data';
 const currentTemplate = ref('');
 const templates = ref([]);
+// JSON snapshot of the current template's last persisted state. Drives isDirty and
+// lets us auto-save the outgoing template when the user switches via the dropdown.
+const lastSavedSnapshot = ref('');
+// Used to anchor the more-horizontal dropdown so click-outside-to-close works.
+const canvasMenuAnchorRef = ref(null);
+
+function serializeCurrent() {
+  return JSON.stringify({
+    canvas: {
+      width: canvas.width,
+      height: canvas.height,
+      transparent: canvas.transparent,
+      solidBg: canvas.solidBg,
+      bgColor: canvas.bgColor
+    },
+    elements: elements.value.map(e => {
+      const c = { ...e };
+      if (c.type === 'image-slot' || c.type === 'image') c.src = '';
+      return c;
+    })
+  });
+}
+
+function loadAllTemplateData() {
+  try { return JSON.parse(localStorage.getItem(TEMPLATE_DATA_KEY) || '{}'); } catch (_) { return {}; }
+}
+function persistAllTemplateData(map) {
+  try { localStorage.setItem(TEMPLATE_DATA_KEY, JSON.stringify(map)); } catch (_) {}
+}
 
 const estimatedCount = computed(() => {
   if (imageFolders.value.length === 0) return 0;
@@ -296,6 +370,12 @@ const templateHint = computed(() => {
   if (templates.value.length === 0) return '未选择模板';
   if (!currentTemplate.value) return '未选择模板';
   return '当前：' + currentTemplate.value;
+});
+
+// True when the current canvas/elements differ from the last persisted snapshot.
+const isDirty = computed(() => {
+  if (!currentTemplate.value) return elements.value.length > 0;
+  return serializeCurrent() !== lastSavedSnapshot.value;
 });
 
 const frameStyle = computed(() => {
@@ -526,6 +606,8 @@ async function pickOutput() {
 
 function updateEstimate() { /* computed handles it */ }
 
+// Watch for template changes to load the saved state.
+watch(currentTemplate, (name) => { if (name) loadTemplate(name); });
 // 模板
 function loadTemplates() {
   try {
@@ -539,23 +621,88 @@ function persistTemplates() {
 function newTemplate() {
   const name = prompt('新模板名称', '模板' + (templates.value.length + 1));
   if (!name) return;
+  if (templates.value.includes(name)) {
+    window.showToast?.('已存在同名模板', 'warn'); return;
+  }
   templates.value.push(name);
   persistTemplates();
-  currentTemplate.value = name;
+  // Start with a clean canvas; nothing to restore yet.
   elements.value = [];
   canvas.bgImg = '';
+  currentTemplate.value = name;
   window.showToast?.('已创建模板：' + name, 'success');
 }
 function saveTemplate() {
   if (!currentTemplate.value) { window.showToast?.('请先选择或新建模板', 'warn'); return; }
-  // 当前实现里模板 = 元素列表 + 画布尺寸；持久化到内存即可（实际项目可存 localStorage / 文件）
+  // Persist canvas dims + bg color/transparent flag (not the bgImg blob URL, which dies on reload).
+  const snapshot = {
+    canvas: {
+      width: canvas.width,
+      height: canvas.height,
+      transparent: canvas.transparent,
+      solidBg: canvas.solidBg,
+      bgColor: canvas.bgColor
+    },
+    // Strip image-slot srcs (blob URLs do not survive a reload).
+    elements: elements.value.map(e => {
+      const c = { ...e };
+      if (c.type === 'image-slot' || c.type === 'image') c.src = '';
+      return c;
+    })
+  };
+  const all = loadAllTemplateData();
+  all[currentTemplate.value] = snapshot;
+  persistAllTemplateData(all);
+  lastSavedSnapshot.value = serializeCurrent();
   window.showToast?.('已保存：' + currentTemplate.value, 'success');
+}
+
+function loadTemplate(name) {
+  if (!name) return;
+  // Auto-persist the outgoing template's current state if it has unsaved changes,
+  // so the user can always revert by re-selecting the template from the dropdown.
+  const outgoingName = currentTemplate.value;
+  if (outgoingName && outgoingName !== name && templates.value.includes(outgoingName)) {
+    const outgoingJson = serializeCurrent();
+    if (outgoingJson !== lastSavedSnapshot.value) {
+      const all = loadAllTemplateData();
+      all[outgoingName] = JSON.parse(outgoingJson);
+      persistAllTemplateData(all);
+    }
+  }
+  // Hard reset first so we don't leak blob URLs from the previous template.
+  for (const el of elements.value) {
+    if ((el.type === 'image-slot' || el.type === 'image') && el.src) {
+      try { URL.revokeObjectURL(el.src); } catch (_) {}
+    }
+  }
+  elements.value = [];
+  canvas.bgImg = '';
+  selectedId.value = null;
+  slotCount = 0;
+  const all = loadAllTemplateData();
+  const snap = all[name];
+  if (snap && snap.canvas) Object.assign(canvas, snap.canvas);
+  if (snap && Array.isArray(snap.elements)) {
+    elements.value = snap.elements;
+    for (const el of elements.value) {
+      if (el.type === 'slot' || el.type === 'image-slot') {
+        if (typeof el.index === 'number' && el.index > slotCount) slotCount = el.index;
+      }
+    }
+  }
+  // Reset baseline so the dirty dot clears after a switch.
+  lastSavedSnapshot.value = serializeCurrent();
 }
 function deleteTemplate() {
   if (!currentTemplate.value) return;
   if (!confirm('删除模板 ' + currentTemplate.value + ' ?')) return;
-  templates.value = templates.value.filter(t => t !== currentTemplate.value);
+  const name = currentTemplate.value;
+  templates.value = templates.value.filter(t => t !== name);
   persistTemplates();
+  const all = loadAllTemplateData();
+  delete all[name];
+  persistAllTemplateData(all);
   currentTemplate.value = '';
   window.showToast?.('已删除', 'success');
 }
@@ -564,14 +711,201 @@ function deleteCurrentTemplate() {
   deleteTemplate();
 }
 function canvasMenu() {
-  window.showToast?.('更多操作待接入', 'info');
+  canvasMenuOpen.value = !canvasMenuOpen.value;
+  if (canvasMenuOpen.value) {
+    // Defer so the click that opened the menu doesn't immediately close it.
+    setTimeout(() => document.addEventListener('mousedown', onDocClickCloseMenu, true), 0);
+  } else {
+    document.removeEventListener('mousedown', onDocClickCloseMenu, true);
+  }
+}
+function onDocClickCloseMenu(e) {
+  if (!canvasMenuOpen.value) return;
+  const anchor = canvasMenuAnchorRef.value;
+  if (anchor && !anchor.contains(e.target)) closeCanvasMenu();
+}
+function onKeydown(e) {
+  if (e.key === 'Escape' && showPreviewModal.value) closePreview();
+}
+function closeCanvasMenu() {
+  canvasMenuOpen.value = false;
+  document.removeEventListener('mousedown', onDocClickCloseMenu, true);
+}
+
+function clearAllElements() {
+  if (elements.value.length === 0) return;
+  if (!confirm('清空画布上所有元素？此操作不影响模板本身。')) return;
+  for (const el of elements.value) {
+    if ((el.type === 'image-slot' || el.type === 'image') && el.src) {
+      try { URL.revokeObjectURL(el.src); } catch (_) {}
+    }
+  }
+  elements.value = [];
+  selectedId.value = null;
+  closeCanvasMenu();
+}
+
+function fitToView() {
+  const stage = stageRef.value;
+  if (!stage) return;
+  const padding = 80;
+  const sw = stage.clientWidth - padding;
+  const sh = stage.clientHeight - padding;
+  if (sw <= 0 || sh <= 0) return;
+  const z = Math.max(0.1, Math.min(2, Math.min(sw / canvas.width, sh / canvas.height)));
+  zoom.value = z;
+  closeCanvasMenu();
+}
+
+function duplicateSelected() {
+  if (!selectedId.value) return;
+  const idx = elements.value.findIndex(e => e.id === selectedId.value);
+  if (idx < 0) return;
+  const src = elements.value[idx];
+  const copy = { ...src, id: newId(), x: src.x + 20, y: src.y + 20 };
+  if (src.type === 'slot' || src.type === 'image-slot') {
+    copy.index = ++slotCount;
+  }
+  elements.value.push(copy);
+  selectedId.value = copy.id;
+  closeCanvasMenu();
+}
+
+function bringToFront() {
+  if (!selectedId.value) return;
+  const idx = elements.value.findIndex(e => e.id === selectedId.value);
+  if (idx < 0 || idx === elements.value.length - 1) return;
+  const [el] = elements.value.splice(idx, 1);
+  elements.value.push(el);
+  closeCanvasMenu();
+}
+
+function sendToBack() {
+  if (!selectedId.value) return;
+  const idx = elements.value.findIndex(e => e.id === selectedId.value);
+  if (idx <= 0) return;
+  const [el] = elements.value.splice(idx, 1);
+  elements.value.unshift(el);
+  closeCanvasMenu();
+}
+
+async function exportTemplateJson() {
+  const data = {
+    name: currentTemplate.value || 'untitled',
+    canvas: {
+      width: canvas.width, height: canvas.height,
+      transparent: canvas.transparent, solidBg: canvas.solidBg, bgColor: canvas.bgColor
+    },
+    elements: elements.value.map(e => { const c = { ...e }; if (c.type === 'image-slot' || c.type === 'image') c.src = ''; return c; })
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (data.name || 'template') + '.json'; a.click();
+  URL.revokeObjectURL(url);
+  window.showToast?.('已导出 JSON', 'success');
+  closeCanvasMenu();
+}
+
+async function importTemplateJson() {
+  if (!window.electronAPI) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'application/json';
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => applyTemplateJson(String(reader.result));
+      reader.readAsText(f);
+    };
+    inp.click();
+    return;
+  }
+  const r = await window.electronAPI.openFiles({ filters: [{ name: 'JSON', extensions: ['json'] }] });
+  if (r.canceled || !r.filePaths.length) return;
+  const fr = await window.electronAPI.readFile(r.filePaths[0]);
+  if (!fr.success) { window.showToast?.(fr.error, 'error'); return; }
+  applyTemplateJson(new TextDecoder('utf-8').decode(new Uint8Array(fr.data)));
+  closeCanvasMenu();
+}
+
+function applyTemplateJson(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data.canvas) Object.assign(canvas, data.canvas);
+    if (Array.isArray(data.elements)) {
+      elements.value = data.elements.map(e => {
+        const c = { ...e }; c.id = newId();
+        if (c.type === 'image-slot' || c.type === 'image') c.src = '';
+        return c;
+      });
+      slotCount = elements.value.reduce((m, e) => (e.type === 'image-slot' || e.type === 'slot') ? Math.max(m, e.index || 0) : m, 0);
+      window.showToast?.('已导入 JSON', 'success');
+    }
+  } catch (e) {
+    window.showToast?.('JSON 解析失败：' + e.message, 'error');
+  }
 }
 
 // 生成
 async function previewAll() {
   if (!elements.value.length) { window.showToast?.('画布为空', 'warn'); return; }
-  if (!images.value.length) { window.showToast?.('请先添加图片', 'warn'); return; }
-  window.showToast?.('预览已就绪（点击画布查看效果）', 'info');
+  if (imageFolders.value.length === 0 || imageFolders.value[0].files.length === 0) {
+    window.showToast?.('请先添加图片文件夹', 'warn'); return;
+  }
+  const frame = document.querySelector('.canvas-frame');
+  if (!frame) return;
+  // Fill every image-slot with the first folder's first image (r=0). Multi-folder preview
+  // uses each folder's index-0 image for the matching slot.
+  const slots = elements.value.filter(e => e.type === 'image-slot');
+  const savedZoom = zoom.value;
+  const prevSrcs = new Map(slots.map(s => [s.id, s.src]));
+  try {
+    for (let i = 0; i < slots.length; i++) {
+      const folder = rule.mode === 'single'
+        ? imageFolders.value[0]
+        : (imageFolders.value[Math.min(i, imageFolders.value.length - 1)] || imageFolders.value[0]);
+      if (!folder || !folder.files.length) continue;
+      const f = folder.files[0];
+      const fr = await window.electronAPI.readFile(f.path);
+      if (!fr.success) continue;
+      const ext = (f.path.split('.').pop() || 'png').toLowerCase();
+      const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const blob = new Blob([fr.data], { type: mime });
+      const url = URL.createObjectURL(blob);
+      await new Promise((resolve, reject) => {
+        const probe = new Image(); probe.onload = resolve; probe.onerror = reject; probe.src = url;
+      });
+      if (slots[i].src) try { URL.revokeObjectURL(slots[i].src); } catch (_) {}
+      slots[i].src = url;
+    }
+    zoom.value = 1;
+    await nextTick();
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const out = await html2canvas(frame, {
+      backgroundColor: canvas.transparent ? null : (canvas.solidBg ? canvas.bgColor : '#ffffff'),
+      scale: 1, logging: false, useCORS: true, allowTaint: true
+    });
+    const blob = await new Promise(r => out.toBlob(r, 'image/png'));
+    if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) {}
+    previewUrl.value = URL.createObjectURL(blob);
+    showPreviewModal.value = true;
+  } catch (err) {
+    window.showToast?.('预览失败：' + err.message, 'error');
+  } finally {
+    for (const slot of slots) {
+      const prev = prevSrcs.get(slot.id);
+      if (slot.src && slot.src !== prev) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+      slot.src = prev || '';
+    }
+    zoom.value = savedZoom;
+  }
+}
+
+function closePreview() {
+  if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) {}
+  previewUrl.value = '';
+  showPreviewModal.value = false;
 }
 async function startGenerate() {
   if (!canGenerate.value) {
@@ -699,6 +1033,7 @@ onMounted(async () => {
   await nextTick();
   window.lucide?.createIcons();
   loadTemplates();
+  document.addEventListener('keydown', onKeydown);
 });
 </script>
 
@@ -899,4 +1234,129 @@ onMounted(async () => {
     background: linear-gradient(90deg, var(--neon-cyan), var(--primary));
     transition: width 0.2s;
   }
-</style>
+
+/* ============================================================
+   模板 dirty 指示
+   ============================================================ */
+.template-pill.dirty {
+  background: var(--warn-soft);
+  color: var(--warn-deep);
+  border-color: #fde68a;
+}
+.pill-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   画布更多操作下拉菜单
+   ============================================================ */
+.menu-anchor { position: relative; display: inline-flex; }
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 168px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 30;
+  display: flex; flex-direction: column;
+  gap: 1px;
+}
+.menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+  width: 100%;
+}
+.menu-item:hover:not(:disabled) { background: var(--panel-3); }
+.menu-item:disabled { color: var(--text-4); cursor: not-allowed; }
+.menu-item i[data-lucide] { width: 14px; height: 14px; color: var(--text-3); flex-shrink: 0; }
+.menu-item span { line-height: 1; }
+.menu-divider {
+  height: 1px;
+  background: var(--border-2);
+  margin: 4px 2px;
+}
+
+/* ============================================================
+   预览弹窗
+   ============================================================ */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: tab3-fade-in 0.15s ease-out;
+}
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  animation: tab3-pop-in 0.18s ease-out;
+}
+.modal-preview { width: min(720px, 100%); }
+.modal-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-2);
+}
+.modal-title { margin: 0; font-size: 15px; font-weight: 600; }
+.modal-head .muted { flex: 1; min-width: 0; }
+.modal-close { margin-left: auto; }
+.modal-body {
+  padding: 16px;
+  overflow: auto;
+  flex: 1;
+}
+.preview-body {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel-2);
+  min-height: 240px;
+  max-height: 70vh;
+  background-image:
+    linear-gradient(45deg, #eef0f3 25%, transparent 25%),
+    linear-gradient(-45deg, #eef0f3 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eef0f3 75%),
+    linear-gradient(-45deg, transparent 75%, #eef0f3 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+.preview-img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+}
+.modal-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-2);
+}
+@keyframes tab3-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tab3-pop-in {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}</style>
