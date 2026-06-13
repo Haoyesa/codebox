@@ -208,6 +208,26 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
   // what was making LO silently write 0-byte files on Windows: a
   // crashed prior run leaves a user.lock in the profile, and the
   // next run sees the lock, bails at bootstrap, exits 0, writes
+  // nothing useful. Unique profile per run sidesteps that entirely.
+  const stamp = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  const userProfile = path.join(os.tmpdir(), 'fulltool-lo-profile-' + stamp);
+  try { fs.mkdirSync(userProfile, { recursive: true }); } catch (_) {}
+  // Best-effort cleanup of stale profiles (>1h) so %TEMP% doesn't bloat.
+  try {
+    const tmpRoot = os.tmpdir();
+    for (const name of fs.readdirSync(tmpRoot)) {
+      if (!name.startsWith('fulltool-lo-profile-')) continue;
+      if (name === 'fulltool-lo-profile-' + stamp) continue;
+      const p2 = path.join(tmpRoot, name);
+      try {
+        const st = fs.statSync(p2);
+        if (Date.now() - st.mtimeMs > 3600 * 1000) {
+          fs.rmSync(p2, { recursive: true, force: true });
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+  const profileArg = '-env:UserInstallation=file:///' + userProfile.replace(/\\/g, '/');
 
   const args = [profileArg,
     '--headless',
