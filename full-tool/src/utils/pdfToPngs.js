@@ -11,10 +11,16 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
-export async function pdfToPngs({ pdfPath, scale = 1 }) {
-  // Read the PDF bytes through main process (renderer can't fs.readFile).
-  const data = await window.electronAPI.readFile(pdfPath);
-  const bytes = new Uint8Array(data);
+export async function pdfToPngs({ pdfPath, pdfBytes, scale = 1 }) {
+  // Accept bytes from the main process if they were already read
+  // (avoids a re-read of the file and any race with LO).
+  let bytes;
+  if (pdfBytes && pdfBytes.length) {
+    bytes = pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes);
+  } else {
+    const data = await window.electronAPI.readFile(pdfPath);
+    bytes = new Uint8Array(data);
+  }
   if (bytes.length === 0) {
     throw new Error(
       'PDF is 0 bytes at ' + pdfPath + '. LO probably wrote an empty file (silent failure). ' +

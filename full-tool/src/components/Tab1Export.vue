@@ -486,7 +486,10 @@ async function startExport() {
           const reqFmt = (loRes && loRes.requestedFormat) || 'PDF';
           if (reqFmt !== 'PDF' && loRes && loRes.outputPath) {
             const base = file.name.replace(/\.[^.]+$/, '');
-            const pngs = await pdfToPngs({ pdfPath: loRes.outputPath, scale });
+            // Pass inline bytes from main when available so we do not
+            // need to re-read the file (and so we cannot hit a Windows
+            // file-cache mismatch). Fall back to disk read otherwise.
+            const pngs = await pdfToPngs({ pdfPath: loRes.outputPath, pdfBytes: loRes.pdfBytes, scale });
             for (let p = 0; p < pngs.length; p++) {
               const page = pngs[p];
               const ab = await page.blob.arrayBuffer();

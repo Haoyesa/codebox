@@ -205,34 +205,20 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
   if (!path.isAbsolute(finalIn)) finalIn = path.resolve(finalIn).replace(/\\/g, '/');
   try { fs.mkdirSync(finalOut, { recursive: true }); } catch (_) {}
   // Unique profile dir per invocation. Reusing one across runs is
-  // what was making LO silently write 0-byte files on Windows: a
-  // crashed prior run leaves a user.lock in the profile, and the
-  // next run sees the lock, bails at bootstrap, exits 0, writes
-  // nothing useful. Unique profile per run sidesteps that entirely.
-  const stamp = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-  const userProfile = path.join(os.tmpdir(), 'fulltool-lo-profile-' + stamp);
+  // Stable per-user profile dir. The earlier unique-per-run profile was
+  // the trigger for the 0-byte PDFs on this user's install: combined
+  // with --nofirststartwizard (now removed), it left the profile
+  // uninitialized, LO bailed silently, wrote 0 bytes. A stable dir
+  // lets first-use init run on the first call and the profile is
+  // reusable across runs.
+  const userProfile = path.join(os.tmpdir(), 'fulltool-lo-profile');
+  try { fs.rmSync(userProfile, { recursive: true, force: true }); } catch (_) {}
   try { fs.mkdirSync(userProfile, { recursive: true }); } catch (_) {}
-  // Best-effort cleanup of stale profiles (>1h) so %TEMP% doesn't bloat.
-  try {
-    const tmpRoot = os.tmpdir();
-    for (const name of fs.readdirSync(tmpRoot)) {
-      if (!name.startsWith('fulltool-lo-profile-')) continue;
-      if (name === 'fulltool-lo-profile-' + stamp) continue;
-      const p2 = path.join(tmpRoot, name);
-      try {
-        const st = fs.statSync(p2);
-        if (Date.now() - st.mtimeMs > 3600 * 1000) {
-          fs.rmSync(p2, { recursive: true, force: true });
-        }
-      } catch (_) {}
-    }
-  } catch (_) {}
   const profileArg = '-env:UserInstallation=file:///' + userProfile.replace(/\\/g, '/');
 
   const args = [profileArg,
     '--headless',
     '--nologo',
-    '--nofirststartwizard',
     '--norestore',
     '--convert-to', convertSpec,
     '--outdir', finalOut,
@@ -337,7 +323,9 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
           ));
             return;
           }
-          resolve({ success: true, outputPath: outFile, fileSize: okSize, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
+          let pdfBytes = null;
+        try { pdfBytes = fs.readFileSync(outFile); } catch (_) {}
+        resolve({ success: true, outputPath: outFile, fileSize: okSize, pdfBytes: pdfBytes ? Array.from(pdfBytes) : null, format: 'pdf', requestedFormat: String(format || 'PDF').toUpperCase(), scale: Number(scale) || 1 });
         });
       } else {
         const tail = (stderr || stdout || '').trim();
