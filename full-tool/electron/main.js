@@ -289,19 +289,16 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
     // caused `set PATH=C:\\Program Files\\...` to be misparsed as
     // `set PATH=C:\\Program` (everything past the first space was
     // dropped) — which is why we were getting exit code 1.
-    const q = (v) => '"' + String(v).replace(/"/g, '\\"') + '"';
-    // The env passed to spawn already has PATH set to loDir + system dirs,
-    // so the cmd.exe child inherits a correct PATH on startup. We used to
-    // also `set PATH=...` here, but cmd tokenizes the unquoted value on
-    // whitespace and only kept `C:\Program` (the rest of `C:\Program
-    // Files\...` got treated as a separate command, which then failed and
-    // short-circuited the whole && chain). Drop the set; it was redundant
-    // and was the actual cause of cmd returning exit 1.
-    const cmdLine = ['cd', '/d', q(loDir), '&&', q(loExe)].concat(args.map(q)).join(' ');
-    const proc = spawn(comSpec, ['/d', '/s', '/c', cmdLine], {
+    // Drop the cmd.exe wrapper entirely. spawn passes args to
+    // soffice directly (no shell, no cmd tokenizing, no chained
+    // command parsing) so the args array cannot get mangled by the
+    // cmd line. cwd handles the program-dir-chdir requirement, env
+    // handles the bootstrap, and we never need a set PATH or any
+    // quoting gymnastics.
+    const proc = spawn(loExe, args, {
       shell: false,
       windowsHide: true,
-      windowsVerbatimArguments: true,
+      cwd: loDir,
       env: env
     });
     let stdout = '', stderr = '';
@@ -336,7 +333,7 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
             'expected path: ' + outFile + ')。常见原因：输出目录无写权限 / 杀软拦截写入 / ' +
             '输入文件 LO 不识别 / 上一次 LO 异常退出导致 user profile 锁未释放 ' +
             '(删除 C:/Users/25147/AppData/Local/Temp/fulltool-lo-profile 后重试)。' +
-            ' | cmd: ' + cmdLine
+            ' | cmd: ' + loExe + ' ' + args.map(String).map(s => /[\s"&|<>^()]/.test(s) ? '"' + s + '"' : s).join(' ')
           ));
             return;
           }
