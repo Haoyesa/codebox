@@ -53,13 +53,28 @@
         <div class="section-block">
           <h4 class="section-title">文件操作</h4>
           <div class="row" style="gap: 8px;">
-            <button class="btn btn-sm" @click="pickImages">
-              <i data-lucide="upload"></i>上传图片
+            <button class="btn btn-sm" @click="addImageFolder">
+              <i data-lucide="folder-plus"></i>添加图片文件夹
             </button>
             <button class="btn btn-sm" @click="pickOutput">输出目录</button>
           </div>
           <div class="muted path" style="margin-top: 8px; font-size: 12px;" :title="outputDir">
             {{ outputDir || '未设置' }}
+          </div>
+
+          <div v-if="imageFolders.length" class="img-folder-list" style="margin-top: 10px;">
+            <div v-for="(f, i) in imageFolders" :key="f.id" class="img-folder-row">
+              <span class="img-folder-idx mono">#{{ i + 1 }}</span>
+              <span class="img-folder-path mono" :title="f.path">{{ f.path }}</span>
+              <span class="muted mono" style="font-size: 11px;">{{ f.files.length }} 张</span>
+              <button class="btn-icon" @click="removeImageFolder(f.id)" title="移除">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            <button class="btn btn-sm btn-ghost btn-block" style="margin-top: 4px; font-size: 11px;" @click="clearImageFolders">清空全部图片文件夹</button>
+          </div>
+          <div v-else class="muted" style="margin-top: 10px; font-size: 12px;">
+            单一模式：选 1 个文件夹循环；多文件夹模式：按顺序选多个文件夹，每张拼图依次取对应文件夹的第 r 张图（独立循环）。
           </div>
         </div>
 
@@ -92,12 +107,16 @@
           <h4 class="section-title">操作</h4>
           <div class="row" style="gap: 8px;">
             <button class="btn btn-sm" @click="previewAll">预览</button>
-            <button class="btn btn-sm btn-primary" @click="startGenerate" :disabled="!canGenerate">
-              <i data-lucide="play"></i>开始生成
+            <button class="btn btn-sm btn-primary" @click="startGenerate" :disabled="!canGenerate || isGenerating">
+              <i data-lucide="play"></i>{{ isGenerating ? '生成中 ' + genDone + '/' + genTotal : '开始生成' }}
             </button>
+            <button v-if="isGenerating" class="btn btn-sm btn-warn" @click="cancelGenerate">停止</button>
           </div>
           <div class="muted" style="margin-top: 8px; font-size: 12px;">
-            {{ templateHint }}
+            {{ isGenerating ? genStatus : templateHint }}
+          </div>
+          <div v-if="isGenerating" class="progress-bar" style="margin-top: 6px;">
+            <div class="fill" :style="{ width: (genTotal ? (genDone / genTotal * 100) : 0) + '%' }"></div>
           </div>
         </div>
       </aside>
@@ -194,7 +213,7 @@
               图片列表（<b class="mono">{{ images.length }}</b>）
               <span style="margin-left: 12px;">预计生成 <b class="mono">{{ estimatedCount }}</b> 张</span>
             </span>
-            <button class="btn btn-sm btn-ghost" @click="images = []; updateEstimate()">清空全部</button>
+            <button class="btn btn-sm btn-ghost" @click="clearImageFolders">清空全部</button>
           </div>
           <div class="image-list" v-if="images.length">
             <div v-for="(img, i) in images" :key="i" class="img-chip" :title="img.name">
@@ -214,6 +233,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
+import html2canvas from 'html2canvas';
 
 // 画布
 const canvas = reactive({
@@ -235,8 +255,24 @@ const stageRef = ref(null);
 const rule = reactive({ mode: 'single', firstAsCover: false, scale: '1' });
 
 // 图片 / 输出
-const images = ref([]); // {name, path|dataUrl}
+// imageFolders is the source of truth; `images` is a flat computed used by the UI.
+const imageFolders = ref([]); // {id, path, recursive, files: [{name, path}]}
+let folderId = 1;
+const images = computed(() => {
+  const out = [];
+  imageFolders.value.forEach((f, idx) => {
+    f.files.forEach(file => out.push({ ...file, folderIdx: idx, folderId: f.id }));
+  });
+  return out;
+});
 const outputDir = ref('');
+
+// generation state
+const isGenerating = ref(false);
+const abortGen = ref(false);
+const genDone = ref(0);
+const genTotal = ref(0);
+const genStatus = ref('');
 
 // 模板
 const TEMPLATE_KEY = 'fulltool_puzzle_templates';
@@ -244,11 +280,12 @@ const currentTemplate = ref('');
 const templates = ref([]);
 
 const estimatedCount = computed(() => {
+  if (imageFolders.value.length === 0) return 0;
   if (rule.mode === 'single') {
-    return rule.firstAsCover ? (images.value.length > 0 ? 1 : 0) : images.value.length;
+    const n = imageFolders.value[0].files.length;
+    return rule.firstAsCover ? (n > 0 ? 1 : 0) : n;
   }
-  // 多文件夹: 这里粗略按 images.length 估算
-  return images.value.length;
+  return imageFolders.value.reduce((m, f) => Math.max(m, f.files.length), 0);
 });
 
 const canGenerate = computed(() => {
@@ -437,20 +474,44 @@ async function pickBg() {
   canvas.bgImg = URL.createObjectURL(blob);
 }
 
-async function pickImages() {
+async function addImageFolder() {
   if (!window.electronAPI) {
     window.showToast?.('请在 Electron 版本中使用', 'warn');
     return;
   }
-  const r = await window.electronAPI.openFiles({
-    properties: ['openFile', 'multiSelections'],
-    filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
-  });
-  if (r.canceled || !r.filePaths.length) return;
-  for (const p of r.filePaths) {
-    images.value.push({ name: p.split(/[\\/]/).pop(), path: p });
+  if (rule.mode === 'single' && imageFolders.value.length >= 1) {
+    window.showToast?.('单一文件夹模式：只能添加 1 个文件夹，请先清空', 'warn');
+    return;
   }
-  updateEstimate();
+  const r = await window.electronAPI.openDirectory();
+  if (r.canceled || !r.filePaths.length) return;
+  await loadImageFolder(r.filePaths[0], true);
+}
+
+async function loadImageFolder(dirPath, recursive) {
+  const r = await window.electronAPI.readDir(dirPath, {
+    recursive,
+    extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
+  });
+  if (!r.success) { window.showToast?.(r.error, 'error'); return; }
+  const sorted = r.files.slice().sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
+  const sep = dirPath.includes('\\') ? '\\' : '/';
+  const base = dirPath.replace(/[\\/]+$/, '');
+  imageFolders.value.push({
+    id: folderId++,
+    path: dirPath,
+    recursive,
+    files: sorted.map(name => ({ name, path: base + sep + name }))
+  });
+  window.showToast?.('已添加：' + sorted.length + ' 张图片', 'success');
+}
+
+function removeImageFolder(id) {
+  imageFolders.value = imageFolders.value.filter(f => f.id !== id);
+}
+
+async function clearImageFolders() {
+  imageFolders.value = [];
 }
 
 async function pickOutput() {
@@ -463,9 +524,7 @@ async function pickOutput() {
   outputDir.value = r.filePaths[0];
 }
 
-function updateEstimate() {
-  // computed 自动重算,这里留作后续扩展
-}
+function updateEstimate() { /* computed handles it */ }
 
 // 模板
 function loadTemplates() {
@@ -516,13 +575,103 @@ async function previewAll() {
 }
 async function startGenerate() {
   if (!canGenerate.value) {
-    window.showToast?.('请先完成画布、图片、输出目录三项配置', 'warn');
+    window.showToast?.('请先完成模板、图片文件夹、输出目录三项配置', 'warn');
     return;
   }
-  // 简化：先提示「生成中…」，实际生成走 html2canvas（已在 Tab1 引入）
-  window.showToast?.('开始生成 ' + estimatedCount.value + ' 张', 'info');
-  // 真实实现会循环 images，对每个 image-slot 注入图片，调 html2canvas 截图，写入 outputDir
+  const total = estimatedCount.value;
+  if (total === 0) { window.showToast?.('没有可生成的图片', 'warn'); return; }
+
+  const slots = elements.value.filter(e => e.type === 'image-slot');
+  if (rule.mode === 'multi' && slots.length === 0) {
+    window.showToast?.('多文件夹模式：模板里没有图片坑位', 'warn'); return;
+  }
+
+  const frame = document.querySelector('.canvas-frame');
+  if (!frame) { window.showToast?.('画布节点未找到', 'error'); return; }
+
+  const savedZoom = zoom.value;
+  isGenerating.value = true;
+  abortGen.value = false;
+  genDone.value = 0;
+  genTotal.value = total;
+  genStatus.value = '准备中…';
+
+  const prevSrcs = new Map(slots.map(s => [s.id, s.src]));
+
+  try {
+    zoom.value = 1;
+    await nextTick();
+
+    for (let r = 0; r < total; r++) {
+      if (abortGen.value) break;
+      genStatus.value = `生成 ${r + 1} / ${total}`;
+
+      for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i];
+        let chosen = null;
+        if (rule.mode === 'single') {
+          const f = imageFolders.value[0];
+          if (f && f.files.length) chosen = f.files[r % f.files.length];
+        } else {
+          const f = imageFolders.value[Math.min(i, imageFolders.value.length - 1)];
+          if (f && f.files.length) chosen = f.files[r % f.files.length];
+        }
+        if (chosen) {
+          const fr = await window.electronAPI.readFile(chosen.path);
+          if (fr.success) {
+            const ext = (chosen.path.split('.').pop() || 'png').toLowerCase();
+            const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+            const blob = new Blob([fr.data], { type: mime });
+            const url = URL.createObjectURL(blob);
+            await new Promise((resolve, reject) => {
+              const probe = new Image();
+              probe.onload = resolve; probe.onerror = reject;
+              probe.src = url;
+            });
+            if (slot.src) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+            slot.src = url;
+          }
+        } else {
+          if (slot.src) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+          slot.src = '';
+        }
+      }
+
+      await nextTick();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const out = await html2canvas(frame, {
+        backgroundColor: canvas.transparent ? null : (canvas.solidBg ? canvas.bgColor : '#ffffff'),
+        scale: Number(rule.scale) || 1,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+      const blob = await new Promise(r => out.toBlob(r, 'image/png'));
+      const ab = await blob.arrayBuffer();
+      const idx = String(r + 1).padStart(3, '0');
+      const name = `拼图_${idx}.png`;
+      await window.electronAPI.writeFile(outputDir.value + '/' + name, new Uint8Array(ab));
+      genDone.value = r + 1;
+    }
+  } catch (err) {
+    window.showToast?.('生成失败：' + err.message, 'error');
+  } finally {
+    for (const slot of slots) {
+      const prev = prevSrcs.get(slot.id);
+      if (slot.src && slot.src !== prev) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+      slot.src = prev || '';
+    }
+    zoom.value = savedZoom;
+    isGenerating.value = false;
+    const wasAbort = abortGen.value;
+    abortGen.value = false;
+    genStatus.value = wasAbort ? `已停止（${genDone.value} / ${total}）` : `完成 ${genDone.value} 张`;
+    window.showToast?.(genStatus.value, wasAbort ? 'warn' : 'success');
+  }
 }
+
+function cancelGenerate() { abortGen.value = true; genStatus.value = '正在停止…'; }
 
 // 监听元素变动，自动追加到第一个 image-slot
 watch(images, () => {
@@ -728,4 +877,26 @@ onMounted(async () => {
   .puzzle-layout { grid-template-columns: 1fr; }
   .puzzle-side { position: static; max-height: none; }
 }
+  .img-folder-list { display: flex; flex-direction: column; gap: 4px; }
+  .img-folder-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .img-folder-idx {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 24px; height: 20px;
+    background: var(--neon-cyan-soft); color: #0369a1;
+    border-radius: 4px; font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .img-folder-path {
+    flex: 1; font-size: 11px; color: var(--text-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .progress-bar { height: 4px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }
+  .progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-cyan), var(--primary));
+    transition: width 0.2s;
+  }
 </style>

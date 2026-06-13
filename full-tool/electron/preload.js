@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 下载
   downloadFile: (options) => ipcRenderer.invoke('download:file', options),
 
+  // Feishu / Lark open platform (proxied through main to avoid CORS).
+  feishuGetToken: (payload) => ipcRenderer.invoke('feishu:getToken', payload),
+  feishuListRecords: (payload) => ipcRenderer.invoke('feishu:listRecords', payload),
+  feishuUploadAttachment: (payload) => ipcRenderer.invoke('feishu:uploadAttachment', payload),
+  feishuUpdateRecord: (payload) => ipcRenderer.invoke('feishu:updateRecord', payload),
+
   // 平台信息
   platform: process.platform
 });

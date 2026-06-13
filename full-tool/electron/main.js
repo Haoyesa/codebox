@@ -406,6 +406,116 @@ ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
     return { success: false, error: err.message };
   }
 });
+  // ---- Feishu / Lark open platform ----
+  // Renderer cannot fetch open.feishu.cn directly because CORS blocks the
+  // preflight even in Electron with webSecurity on. We proxy these calls
+  // through the main process which has no CORS restriction.
+  const FEISHU_BASE = 'https://open.feishu.cn/open-apis';
+  const feishuCache = { appId: '', token: '', expire: 0 };
+
+  ipcMain.handle('feishu:getToken', async (event, { appId, appSecret } = {}) => {
+    try {
+      if (!appId || !appSecret) return { success: false, error: '缺少 AppID 或 AppSecret' };
+      if (feishuCache.appId === appId && feishuCache.token && Date.now() < feishuCache.expire - 60_000) {
+        return { success: true, token: feishuCache.token, cached: true, expire: feishuCache.expire };
+      }
+      const r = await fetch(`${FEISHU_BASE}/auth/v3/tenant_access_token/internal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+      });
+      const data = await r.json();
+      if (data.code !== 0) return { success: false, error: data.msg || `code=${data.code}`, raw: data };
+      feishuCache.appId = appId;
+      feishuCache.token = data.tenant_access_token;
+      feishuCache.expire = Date.now() + (Number(data.expire) || 7200) * 1000;
+      return { success: true, token: data.tenant_access_token, expire: feishuCache.expire };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  async function getFeishuToken(appId, appSecret) {
+    if (feishuCache.appId === appId && feishuCache.token && Date.now() < feishuCache.expire - 60_000) {
+      return feishuCache.token;
+    }
+    const r = await fetch(`${FEISHU_BASE}/auth/v3/tenant_access_token/internal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+    });
+    const data = await r.json();
+    if (data.code !== 0) throw new Error(data.msg || `feishu auth code=${data.code}`);
+    feishuCache.appId = appId;
+    feishuCache.token = data.tenant_access_token;
+    feishuCache.expire = Date.now() + (Number(data.expire) || 7200) * 1000;
+    return feishuCache.token;
+  }
+
+  ipcMain.handle('feishu:listRecords', async (event, { appId, appSecret, appToken, tableId, pageSize = 500 } = {}) => {
+    try {
+      const token = await getFeishuToken(appId, appSecret);
+      const r = await fetch(`${FEISHU_BASE}/bitable/v1/apps/${appToken}/tables/${tableId}/records?page_size=${pageSize}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await r.json();
+      if (data.code !== 0) return { success: false, error: data.msg || `code=${data.code}`, raw: data };
+      return { success: true, items: data.data.items || [], total: data.data.total || 0 };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // Upload one file to bitable_image drive. Returns file_token.
+  ipcMain.handle('feishu:uploadAttachment', async (event, { appId, appSecret, appToken, filePath, fileName } = {}) => {
+    try {
+      const token = await getFeishuToken(appId, appSecret);
+      const buf = fs.readFileSync(filePath);
+      const safeName = String(fileName || path.basename(filePath)).replace(/"/g, '');
+      const boundary = '----FullToolBoundary' + Math.random().toString(36).slice(2);
+      const enc = (s) => Buffer.from(s, 'utf8');
+      const head = (name, extra = '') => enc(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"${extra}\r\n\r\n`);
+      const parts = [
+        head('file_name') + enc(safeName) + enc('\r\n'),
+        head('parent_type') + enc('bitable_image') + enc('\r\n'),
+        head('parent_node') + enc(appToken) + enc('\r\n'),
+        enc(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${safeName}"\r\nContent-Type: application/octet-stream\r\n\r\n`),
+        buf,
+        enc(`\r\n--${boundary}--\r\n`)
+      ];
+      const body = Buffer.concat(parts);
+      const r = await fetch(`${FEISHU_BASE}/drive/v1/medias/upload_all`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': `multipart/form-data; boundary=${boundary}`
+        },
+        body
+      });
+      const data = await r.json();
+      if (data.code !== 0) return { success: false, error: data.msg || `code=${data.code}`, raw: data };
+      return { success: true, fileToken: data.data.file_token };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // Update one record's attachment field with one or more file_tokens.
+  ipcMain.handle('feishu:updateRecord', async (event, { appId, appSecret, appToken, tableId, recordId, field, fileTokens } = {}) => {
+    try {
+      const token = await getFeishuToken(appId, appSecret);
+      const r = await fetch(`${FEISHU_BASE}/bitable/v1/apps/${appToken}/tables/${tableId}/records/${recordId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ fields: { [field]: fileTokens.map(t => ({ file_token: t })) } })
+      });
+      const data = await r.json();
+      if (data.code !== 0) return { success: false, error: data.msg || `code=${data.code}`, raw: data };
+      return { success: true, record: data.data && data.data.record };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
 // 删除文件（用于清理临时 PDF 中间产物）
 ipcMain.handle('fs:unlink', async (event, filePath) => {

@@ -5,18 +5,43 @@
     <div class="card">
       <div class="form-grid">
         <div class="form-row">
-          <label class="form-label">授权码</label>
+          <label class="form-label">App ID</label>
           <div class="form-input-group">
             <input
-              :type="showToken ? 'text' : 'password'"
-              v-model="token"
-              placeholder="PersonalBaseToken"
+              :type="showAppId ? 'text' : 'password'"
+              v-model="appId"
+              placeholder="cli_xxxxxxxxxxxxxxxx"
               class="mono"
             />
-            <button class="btn-icon" @click="showToken = !showToken" :title="showToken ? '隐藏' : '显示'">
-              <i :data-lucide="showToken ? 'eye-off' : 'eye'"></i>
+            <button class="btn-icon" @click="showAppId = !showAppId" :title="showAppId ? '隐藏' : '显示'">
+              <i :data-lucide="showAppId ? 'eye-off' : 'eye'"></i>
             </button>
           </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">App Secret</label>
+          <div class="form-input-group">
+            <input
+              :type="showSecret ? 'text' : 'password'"
+              v-model="appSecret"
+              placeholder="应用密钥"
+              class="mono"
+            />
+            <button class="btn-icon" @click="showSecret = !showSecret" :title="showSecret ? '隐藏' : '显示'">
+              <i :data-lucide="showSecret ? 'eye-off' : 'eye'"></i>
+            </button>
+          </div>
+        </div>
+        <div class="row" style="gap: 8px; margin-top: 4px;">
+          <button class="btn btn-sm" @click="verifyAuth" :disabled="state.isVerifying">
+            <i data-lucide="check"></i>{{ state.isVerifying ? '验证中…' : '验证授权' }}
+          </button>
+          <span v-if="state.authOk" class="tag tag-green" style="margin-left: 4px;">
+            <span class="pulse-dot" style="background: var(--ok);"></span>已认证
+          </span>
+          <span v-else-if="state.authError" class="tag tag-amber" style="margin-left: 4px;">
+            失败：{{ state.authError }}
+          </span>
         </div>
 
         <div class="form-row">
@@ -112,8 +137,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 
-const token = ref('');
-const showToken = ref(false);
+const appId = ref('');
+const appSecret = ref('');
+const showAppId = ref(false);
+const showSecret = ref(false);
 const tableUrl = ref('');
 const attachField = ref('内容页图片');
 const rowStart = ref(2);
@@ -123,6 +150,9 @@ const folders = ref([]); // {id, path, recursive, perRow}
 let folderId = 1;
 
 const state = reactive({
+  isVerifying: false,
+  authOk: false,
+  authError: '',
   isUploading: false,
   statusText: '待命',
   dotClass: 'idle',
@@ -131,7 +161,7 @@ const state = reactive({
 });
 
 const canStart = computed(() => {
-  return token.value && tableUrl.value && attachField.value && folders.value.length > 0;
+  return appId.value && appSecret.value && state.authOk && tableUrl.value && attachField.value && folders.value.length > 0;
 });
 
 function log(type, msg) {
@@ -146,6 +176,24 @@ function addFolder() {
 }
 function removeFolder(id) {
   folders.value = folders.value.filter(f => f.id !== id);
+}
+
+async function verifyAuth() {
+  if (!appId.value || !appSecret.value) {
+    window.showToast?.('请先填写 App ID 和 App Secret', 'warn');
+    return;
+  }
+  state.isVerifying = true;
+  state.authError = '';
+  try {
+    const r = await window.electronAPI.feishuGetToken({ appId: appId.value, appSecret: appSecret.value });
+    if (!r.success) { state.authError = r.error || '验证失败'; state.authOk = false; window.showToast?.(state.authError, 'error'); }
+    else { state.authOk = true; window.showToast?.('飞书授权验证通过', 'success'); }
+  } catch (e) {
+    state.authError = e.message; state.authOk = false;
+  } finally {
+    state.isVerifying = false;
+  }
 }
 
 async function pickFolderPath(folder) {
@@ -215,18 +263,14 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
     }
     log('info', `共找到 ${allImages.length} 张图片`);
 
-    // 2) 列出表格记录
+    // 2) 列出表格记录 (走 IPC 代理, 避免 CORS)
     state.statusText = '获取表格记录…';
-    const headers = { Authorization: 'Bearer ' + token.value };
-    const recordsRes = await fetch(
-      `https://open.feishu.cn/open-apis/bitable/v1/apps/${bitable.appToken}/tables/${bitable.tableId}/records?page_size=500`,
-      { headers }
-    );
-    const recordsData = await recordsRes.json();
-    if (recordsData.code !== 0) {
-      throw new Error('获取记录失败：' + (recordsData.msg || JSON.stringify(recordsData)));
-    }
-    const records = recordsData.data.items || [];
+    const lr = await window.electronAPI.feishuListRecords({
+      appId: appId.value, appSecret: appSecret.value,
+      appToken: bitable.appToken, tableId: bitable.tableId
+    });
+    if (!lr.success) throw new Error('获取记录失败：' + (lr.error || JSON.stringify(lr.raw || {})));
+    const records = lr.items;
     log('info', `表格共 ${records.length} 条记录`);
 
     // 3) 计算每个目标行需要的图片
@@ -259,29 +303,25 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
         if (abortFlag) break;
         const img = row.images[k];
         try {
-          // a. 读文件 (直接发 Blob, 不再绕 base64)
-          const fr = await window.electronAPI.readFile(img.path);
-          if (!fr.success) throw new Error(fr.error);
-          const bytes = new Uint8Array(fr.data);
-
-          // b. 调 Feishu upload_attachment API
-          const form = new FormData();
-          form.append('file_name', img.name);
-          form.append('parent_type', 'bitable_image');
-          form.append('parent_node', bitable.appToken);
-          form.append('size', String(bytes.byteLength));
-          form.append('file', new Blob([bytes], { type: 'image/' + (img.name.split('.').pop() || 'png').toLowerCase() }), img.name);
-
-          const upRes = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${bitable.appToken}/tables/${bitable.tableId}/records/${row.record.record_id}/upload_attachment`, {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + token.value },
-            body: form
+          // a. 上传文件到 bitable 附件中转, 拿 file_token
+          const up = await window.electronAPI.feishuUploadAttachment({
+            appId: appId.value, appSecret: appSecret.value,
+            appToken: bitable.appToken, filePath: img.path, fileName: img.name
           });
-          const upData = await upRes.json();
-          if (upData.code !== 0) {
-            log('err', `${img.name} 上传失败：${upData.msg || JSON.stringify(upData)}`);
+          if (!up.success) {
+            log('err', `${img.name} 上传失败：${up.error || JSON.stringify(up.raw || {})}`);
+            continue;
+          }
+          // b. 把 file_token 写进本行记录的附件字段
+          const ur = await window.electronAPI.feishuUpdateRecord({
+            appId: appId.value, appSecret: appSecret.value,
+            appToken: bitable.appToken, tableId: bitable.tableId,
+            recordId: row.record.record_id, field: attachField.value, fileTokens: [up.fileToken]
+          });
+          if (!ur.success) {
+            log('err', `${img.name} 写记录失败：${ur.error || JSON.stringify(ur.raw || {})}`);
           } else {
-            log('ok', `${img.name} ✓`);
+            log('ok', `${img.name} ✓`);            log('ok', `${img.name} ✓`);
           }
         } catch (e) {
           log('err', `${img.name} 失败：${e.message}`);
