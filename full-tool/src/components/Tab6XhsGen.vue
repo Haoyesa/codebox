@@ -41,9 +41,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .xhsgen-wrap {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
 }
 .xhsgen-wrap > .desc {
@@ -51,8 +49,9 @@ onBeforeUnmount(() => {
   margin: 0 0 10px;
 }
 .xhsgen-frame {
-  flex: 1 1 auto;
-  min-height: 720px;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;

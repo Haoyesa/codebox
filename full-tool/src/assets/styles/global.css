@@ -154,9 +154,14 @@ i[data-lucide] { display: inline-flex; vertical-align: -3px; }
 /* ============================================================
    主体
    ============================================================ */
-main { flex: 1; padding: 0 22px 22px; }
+main {
+  flex: 1;
+  padding: 0 22px 22px;
+  display: flex;
+  flex-direction: column;
+}
 .page { display: none; }
-.page.active { display: block; animation: pageIn .25s ease; }
+.page.active { display: flex; flex-direction: column; flex: 1; min-height: 0; animation: pageIn .25s ease; }
 @keyframes pageIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* ============================================================
