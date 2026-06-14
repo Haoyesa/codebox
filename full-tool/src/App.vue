@@ -25,7 +25,8 @@
       <Tab4Feishu :class="['page', { active: currentTab === 'p4' }]" />
       <Tab5Xhs :class="['page', { active: currentTab === 'p5' }]" />
       <Tab6XhsGen :class="['page', { active: currentTab === 'p6' }]" />
-      <Tab6Settings :class="['page', { active: currentTab === 'p7' }]" />
+      <Tab7Uplog :class="['page', { active: currentTab === 'p7' }]" />
+      <Tab6Settings :class="['page', { active: currentTab === 'p8' }]" />
     </main>
 
     <!-- Toast notification -->
@@ -46,6 +47,7 @@ import Tab4Feishu from './components/Tab4Feishu.vue';
 import Tab5Xhs from './components/Tab5Xhs.vue';
 import Tab6XhsGen from './components/Tab6XhsGen.vue';
 import Tab6Settings from './components/Tab6Settings.vue';
+import Tab7Uplog from './components/Tab7Uplog.vue';
 
 // Tab 定义（对齐截图）
 const tabs = [
@@ -55,7 +57,8 @@ const tabs = [
   { id: 'p4', label: '飞书一键上传', icon: 'upload-cloud' },
   { id: 'p5', label: '小红书商品下载', icon: 'shopping-bag' },
   { id: 'p6', label: '小红书爆款素材', icon: 'flame' },
-  { id: 'p7', label: '设置', icon: 'settings' }
+  { id: 'p7', label: 'UPlog 笔记', icon: 'notebook-pen' },
+  { id: 'p8', label: '设置', icon: 'settings' }
 ];
 
 const currentTab = ref('p1');
