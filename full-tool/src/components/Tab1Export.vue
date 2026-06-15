@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="page">
     <p class="desc">
       选择文件后将自动扫描并导出 PNG，支持放大与裁剪。
@@ -142,6 +142,15 @@
               <i data-lucide="download" style="width:18px;height:18px"></i>
               开始导出
             </template>
+          </button>
+          <button
+            class="secondary"
+            :disabled="!canStart || state.isExporting"
+            @click="exportFullPreview"
+            title="把当前文件所有页面拼成一张长图，输出为 -preview.png"
+          >
+            <i data-lucide="layers" style="width:16px;height:16px"></i>
+            输出整张预览图
           </button>
         </div>
 
@@ -542,6 +551,191 @@ async function startExport() {
   state.currentFile = '';
 }
 
+// 把多张页面图按原始比例纵向拼成一张长图，超高时按比例缩到 maxTotalHeight 以内
+// 避免触发 canvas 尺寸上限。pages 形如 [{ width, height, blob }]
+async function stitchPagesToSingleImage(pages, options = {}) {
+  if (!pages || pages.length === 0) throw new Error('没有可拼接的页面');
+  if (pages.length === 1) return pages[0].blob;
+
+  const maxTotalHeight = options.maxTotalHeight || 16000;
+  const bitmaps = await Promise.all(pages.map(async (p) => {
+    const bm = await createImageBitmap(p.blob);
+    return { bm, w: bm.width, h: bm.height };
+  }));
+
+  const maxWidth = Math.max(...bitmaps.map(b => b.w));
+  const ratios = bitmaps.map(b => maxWidth / b.w);
+  const scaledHeights = bitmaps.map((b, i) => Math.round(b.h * ratios[i]));
+  const rawHeight = scaledHeights.reduce((a, b) => a + b, 0);
+
+  let outW = maxWidth;
+  let outH = rawHeight;
+  if (rawHeight > maxTotalHeight) {
+    const k = maxTotalHeight / rawHeight;
+    outW = Math.round(maxWidth * k);
+    outH = maxTotalHeight;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, outW, outH);
+
+  let y = 0;
+  for (let i = 0; i < bitmaps.length; i++) {
+    const drawH = Math.round(bitmaps[i].h * (outW / bitmaps[i].w));
+    ctx.drawImage(bitmaps[i].bm, 0, y, outW, drawH);
+    y += drawH;
+    bitmaps[i].bm.close?.();
+  }
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+// 整张预览图：把每个文件的所有页面拼成一张长图，输出为 -preview.png
+async function exportFullPreview() {
+  if (!canStart.value || state.isExporting) return;
+  if (!window.electronAPI) {
+    window.showToast?.('该功能需要在 Electron 版本中使用', 'error');
+    return;
+  }
+
+  state.isExporting = true;
+  state.progress = 0;
+  state.cancelRequested = false;
+  state.doneCount = 0;
+  state.failedFiles = [];
+  state.skippedFiles = [];
+
+  // 汇总所有待处理文件
+  const allFiles = [];
+  for (const f of state.files) {
+    allFiles.push({ path: f.path, name: f.name, ext: f.name.split('.').pop().toLowerCase() });
+  }
+  for (const folder of state.folders) {
+    for (const fileName of folder.files) {
+      allFiles.push({
+        path: folder.path + '/' + fileName,
+        name: fileName,
+        ext: fileName.split('.').pop().toLowerCase()
+      });
+    }
+  }
+  const totalFiles = allFiles.length;
+  state.totalCount = totalFiles;
+
+  if (totalFiles === 0) {
+    window.showToast?.('没有可导出的文件', 'error');
+    state.isExporting = false;
+    return;
+  }
+
+  state.statusText = '正在准备预览图...';
+  await checkLibreOffice();
+  const loAvailable = state.loFound;
+  const scale = parseFloat(settings.scale) || 1;
+
+  const hasNonDocx = allFiles.some(f => f.ext !== 'docx');
+  if (!loAvailable && hasNonDocx) {
+    window.showToast?.('未检测到 LibreOffice，PDF/PPT/XLS 等格式将跳过；.docx 仍可导出', 'warn');
+  }
+
+  let successCount = 0;
+  for (let i = 0; i < allFiles.length; i++) {
+    if (state.cancelRequested) break;
+    const file = allFiles[i];
+    state.currentFile = file.name;
+    state.statusText = '正在拼接：' + file.name;
+
+    try {
+      const base = file.name.replace(/\.[^.]+$/, '');
+      const outPath = state.outputDir + '/' + base + '-preview.png';
+      const pages = []; // [{ width, height, blob }]
+
+      if (file.ext === 'docx') {
+        // JS 路径：mammoth -> html -> html2canvas，单张长图
+        const r = await window.electronAPI.readFile(file.path);
+        if (!r.success) throw new Error('读取文件失败：' + r.error);
+        const result = await mammoth.convertToHtml({ arrayBuffer: r.data });
+        const html = result.value || '';
+        if (!html.trim()) throw new Error('docx 内容为空');
+
+        const host = document.getElementById('lo-render-host');
+        if (!host) throw new Error('找不到渲染节点 lo-render-host');
+        host.innerHTML = '<div class="lo-doc">' + html + '</div>';
+        await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+        const target = host.firstElementChild;
+        if (!target) throw new Error('渲染目标为空');
+        const canvas = await html2canvas(target, {
+          scale: scale,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false
+        });
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        if (!blob) throw new Error('canvas 转 blob 失败');
+        pages.push({ width: canvas.width, height: canvas.height, blob });
+        host.innerHTML = '';
+      } else if (file.ext === 'pdf') {
+        // 已是 PDF：直接走 pdfjs，避免再过一遍 LO
+        const data = await window.electronAPI.readFile(file.path);
+        if (!data.success) throw new Error('读取文件失败：' + data.error);
+        const pngs = await pdfToPngs({ pdfBytes: data.data, scale });
+        for (const p of pngs) pages.push({ width: p.width, height: p.height, blob: p.blob });
+      } else {
+        // 其他格式：LO -> PDF -> pdfToPngs
+        if (!loAvailable) {
+          state.skippedFiles.push(file.name);
+          window.showToast?.(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
+          continue;
+        }
+        const loRes = await window.electronAPI.libreOfficeConvert({
+          inputPath: file.path,
+          outputDir: state.outputDir,
+          format: 'PDF',
+          scale: scale
+        });
+        if (!loRes || !loRes.outputPath) throw new Error('LibreOffice 转换失败');
+        const pngs = await pdfToPngs({ pdfPath: loRes.outputPath, pdfBytes: loRes.pdfBytes, scale });
+        for (const p of pngs) pages.push({ width: p.width, height: p.height, blob: p.blob });
+        try { await window.electronAPI.unlink(loRes.outputPath); } catch (_) {}
+      }
+
+      if (pages.length === 0) throw new Error('未生成任何页面');
+
+      const finalBlob = await stitchPagesToSingleImage(pages);
+      if (!finalBlob) throw new Error('拼接失败');
+      const ab = await finalBlob.arrayBuffer();
+      await window.electronAPI.writeFile(outPath, new Uint8Array(ab));
+      successCount++;
+    } catch (err) {
+      console.error('Preview export failed for', file.name, err);
+      state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
+      window.showToast?.('预览生成失败：' + file.name, 'error');
+    }
+    state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
+    state.progress = Math.round((state.doneCount / totalFiles) * 100);
+  }
+
+  // 收尾汇总
+  const failed = state.failedFiles.length;
+  const skipped = state.skippedFiles.length;
+  if (state.cancelRequested) {
+    state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + '）';
+    window.showToast?.('预览导出已取消', 'warn');
+  } else {
+    let msg = '预览图已生成：' + successCount + ' 张';
+    if (failed > 0) msg += '，失败 ' + failed;
+    if (skipped > 0) msg += '，跳过 ' + skipped;
+    state.statusText = msg;
+    window.showToast?.(msg, failed > 0 || skipped > 0 ? 'warn' : 'success');
+  }
+  state.isExporting = false;
+  state.currentFile = '';
+}
+
 function simulateExport() {
   // Browser fallback simulation
   let p = 0;
@@ -712,6 +906,27 @@ onMounted(async () => {
 .export-block .big:hover:not(:disabled) { filter: brightness(1.05); }
 .export-block .big:active:not(:disabled) { transform: scale(0.98); }
 .export-block .big:disabled { opacity: 0.6; cursor: not-allowed; }
+.export-block .secondary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 16px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: border-color .15s, color .15s, background .15s, transform .1s;
+}
+.export-block .secondary:hover:not(:disabled) {
+  border-color: var(--primary-2);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.export-block .secondary:active:not(:disabled) { transform: scale(0.99); }
+.export-block .secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Progress */
 .progress-section { margin-top: 12px; }
