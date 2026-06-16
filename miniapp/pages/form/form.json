@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "手动填写",
+  "usingComponents": { "card": "/components/card/index", "btn": "/components/btn/index" }
+}

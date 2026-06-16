@@ -1,0 +1,44 @@
+<view class="container">
+  <card>
+    <view class="section-title">基本信息</view>
+    <input class="input" placeholder="姓名" data-field="name" value="{{data.name}}" bindinput="onInput" />
+    <input class="input" placeholder="手机号" data-field="phone" value="{{data.phone}}" bindinput="onInput" />
+    <input class="input" placeholder="邮箱" data-field="email" value="{{data.email}}" bindinput="onInput" />
+  </card>
+
+  <card>
+    <view class="section-title">教育经历</view>
+    <block wx:for="{{data.education}}" wx:key="index" wx:for-index="idx">
+      <input class="input" placeholder="学校" data-idx="{{idx}}" data-field="school" value="{{item.school}}" bindinput="onEduInput" />
+      <input class="input" placeholder="专业" data-idx="{{idx}}" data-field="major" value="{{item.major}}" bindinput="onEduInput" />
+      <view class="row">
+        <input class="input half" placeholder="开始(YYYY-MM)" data-idx="{{idx}}" data-field="startDate" value="{{item.startDate}}" bindinput="onEduInput" />
+        <input class="input half" placeholder="结束" data-idx="{{idx}}" data-field="endDate" value="{{item.endDate}}" bindinput="onEduInput" />
+      </view>
+    </block>
+    <view class="add-btn" bindtap="addEdu">+ 添加教育经历</view>
+  </card>
+
+  <card>
+    <view class="section-title">工作经历</view>
+    <block wx:for="{{data.work}}" wx:key="index" wx:for-index="idx">
+      <input class="input" placeholder="公司" data-idx="{{idx}}" data-field="company" value="{{item.company}}" bindinput="onWorkInput" />
+      <input class="input" placeholder="职位" data-idx="{{idx}}" data-field="title" value="{{item.title}}" bindinput="onWorkInput" />
+      <view class="row">
+        <input class="input half" placeholder="开始" data-idx="{{idx}}" data-field="startDate" value="{{item.startDate}}" bindinput="onWorkInput" />
+        <input class="input half" placeholder="结束" data-idx="{{idx}}" data-field="endDate" value="{{item.endDate}}" bindinput="onWorkInput" />
+      </view>
+      <textarea class="input textarea" placeholder="工作描述" data-idx="{{idx}}" data-field="description" value="{{item.description}}" bindinput="onWorkInput" auto-height></textarea>
+    </block>
+    <view class="add-btn" bindtap="addWork">+ 添加工作经历</view>
+  </card>
+
+  <card>
+    <view class="section-title">技能</view>
+    <input class="input" placeholder="逗号分隔,如 JavaScript, React, Node" value="{{data.skillsText}}" bindinput="onSkillsInput" />
+  </card>
+
+  <view class="footer-action">
+    <btn block size="lg" bind:tap="onSave">保存并继续</btn>
+  </view>
+</view>
