@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "优化结果",
+  "usingComponents": {
+    "card": "/components/card/index",
+    "btn": "/components/btn/index",
+    "score-bar": "/components/score-bar/index"
+  }
+}
