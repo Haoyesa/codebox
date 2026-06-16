@@ -1,0 +1,2 @@
+.actions { padding: var(--space-8) var(--space-4); }
+.loading { text-align: center; color: var(--color-primary); padding: var(--space-4); }

@@ -1,0 +1,12 @@
+.dropzone {
+  background: var(--color-bg-card);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+  margin: var(--space-6) 0;
+}
+.dz-icon { font-size: 56px; margin-bottom: var(--space-3); opacity: 0.6; }
+.dz-title { font-size: var(--font-lg); margin-bottom: var(--space-2); }
+.dz-desc { font-size: var(--font-sm); color: var(--color-text-tertiary); }
+.loading { text-align: center; color: var(--color-primary); font-size: var(--font-sm); padding: var(--space-4); }

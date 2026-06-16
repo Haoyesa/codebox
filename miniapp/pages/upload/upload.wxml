@@ -1,0 +1,8 @@
+<view class="container">
+  <view class="dropzone" bindtap="onChoose">
+    <view class="dz-icon">📁</view>
+    <view class="dz-title">{{fileName || '点击选择文件'}}</view>
+    <view class="dz-desc">支持 .docx / .doc / .pdf / .jpg / .png</view>
+  </view>
+  <view wx:if="{{uploading}}" class="loading">解析中,请稍候...</view>
+</view>

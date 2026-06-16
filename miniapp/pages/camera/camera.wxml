@@ -1,0 +1,8 @@
+<view class="container">
+  <view class="actions">
+    <btn block size="lg" bind:tap="onCamera">📷 拍照</btn>
+    <view style="height: 16px"></view>
+    <btn block type="secondary" bind:tap="onAlbum">🖼️ 从相册选</btn>
+  </view>
+  <view wx:if="{{uploading}}" class="loading">解析中,请稍候...</view>
+</view>
