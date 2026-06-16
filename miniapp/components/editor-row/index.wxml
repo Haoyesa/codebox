@@ -1,0 +1,10 @@
+<view class="editor-row">
+  <view class="col original">
+    <view class="col-label">原版</view>
+    <textarea class="col-text" value="{{original}}" disabled="{{!editable}}" bindinput="onOriginalInput" auto-height></textarea>
+  </view>
+  <view class="col optimized">
+    <view class="col-label">优化版</view>
+    <textarea class="col-text optimized" value="{{optimized}}" disabled="{{!editable}}" bindinput="onOptimizedInput" auto-height></textarea>
+  </view>
+</view>

@@ -1,0 +1,19 @@
+.score-bar { margin-bottom: var(--space-3); }
+.score-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.score-value { font-weight: var(--font-semibold); color: var(--color-text); }
+.score-track {
+  height: 8px;
+  background: var(--color-bg);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: var(--radius-full); transition: width 0.4s; }
+.score-fill.high { background: var(--color-success); }
+.score-fill.mid { background: var(--color-warning); }
+.score-fill.low { background: var(--color-danger); }

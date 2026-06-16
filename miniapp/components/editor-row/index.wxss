@@ -1,0 +1,11 @@
+.editor-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
+.col { flex: 1; background: var(--color-bg-card); border-radius: var(--radius-md); padding: var(--space-3); }
+.col-label { font-size: var(--font-xs); color: var(--color-text-tertiary); margin-bottom: var(--space-2); }
+.col-text {
+  width: 100%;
+  min-height: 80px;
+  font-size: var(--font-sm);
+  line-height: var(--line-normal);
+  color: var(--color-text);
+}
+.col-text.optimized { color: var(--color-primary); font-weight: var(--font-medium); }
