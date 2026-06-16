@@ -1,0 +1,3 @@
+<button class="btn {{type}} {{size}} {{block ? 'block' : ''}} {{disabled ? 'disabled' : ''}}" bindtap="onTap" hover-class="hover">
+  <slot></slot>
+</button>
