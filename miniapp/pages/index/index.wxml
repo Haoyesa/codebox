@@ -1,0 +1,13 @@
+<view class="container">
+  <view class="hero">
+    <view class="hero-title">让 AI 帮你打磨简历</view>
+    <view class="hero-sub">上传简历,一键生成基于岗位的优化版本 + 4 维评分</view>
+  </view>
+
+  <view class="actions">
+    <btn block size="lg" bind:tap="onStart">开始优化</btn>
+    <view class="action-secondary" bindtap="onGoHistory">查看历史</view>
+  </view>
+
+  <view class="footer">{{ identity ? '已选身份: ' + identity : '尚未选择身份' }}</view>
+</view>

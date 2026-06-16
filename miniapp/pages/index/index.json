@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "简历优化",
+  "usingComponents": {
+    "btn": "/components/btn/index"
+  }
+}
