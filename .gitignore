@@ -99,3 +99,19 @@ changsha_poster.svg
 **/.tmp/
 **/tmp/
 *.patch.js
+
+# ===== v0.1 project specific =====
+# Admin (Vue 3 + Vite)
+admin/dist/
+admin/.vite/
+
+# WeChat dev tools auto-generated
+project.private.config.json
+miniprogramRoot/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Cloud functions local node_modules (when we add npm deps later)
+cloudfunctions/*/node_modules/
