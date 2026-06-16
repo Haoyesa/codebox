@@ -1,0 +1,42 @@
+<view class="container">
+  <view class="section">
+    <view class="section-title">行业</view>
+    <view class="chips">
+      <block wx:for="{{industries}}" wx:key="code">
+        <view class="chip {{selectedIndustry.code === item.code ? 'active' : ''}}"
+              data-code="{{item.code}}" bindtap="onPickIndustry">
+          <text class="chip-icon">{{item.icon}}</text>
+          <text>{{item.name}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{selectedIndustry}}">
+    <view class="section-title">岗位</view>
+    <view class="chips">
+      <block wx:for="{{jobs}}" wx:key="code">
+        <view class="chip {{selectedJob.code === item.code ? 'active' : ''}}"
+              data-code="{{item.code}}" bindtap="onPickJob">
+          {{item.name}}
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{selectedJob}}">
+    <view class="section-title">职级</view>
+    <view class="chips">
+      <block wx:for="{{levels}}" wx:key="code">
+        <view class="chip {{selectedLevel.code === item.code ? 'active' : ''}}"
+              data-code="{{item.code}}" bindtap="onPickLevel">
+          {{item.name}}
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view class="footer-action" wx:if="{{selectedLevel}}">
+    <btn block size="lg" bind:tap="onConfirm">下一步</btn>
+  </view>
+</view>

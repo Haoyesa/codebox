@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "选择目标岗位",
+  "usingComponents": { "btn": "/components/btn/index" }
+}
