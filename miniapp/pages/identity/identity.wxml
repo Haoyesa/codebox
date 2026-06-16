@@ -1,0 +1,22 @@
+<view class="container">
+  <view class="title">你的求职身份是?</view>
+  <view class="subtitle">不同身份对应不同优化策略</view>
+
+  <view class="list">
+    <block wx:for="{{items}}" wx:key="code">
+      <view class="item {{selected === item.code ? 'active' : ''}}"
+            data-code="{{item.code}}" bindtap="onSelect">
+        <view class="item-icon">{{item.icon}}</view>
+        <view class="item-body">
+          <view class="item-name">{{item.name}}</view>
+          <view class="item-desc">{{item.desc}}</view>
+        </view>
+        <view wx:if="{{selected === item.code}}" class="item-check">✓</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="footer-action">
+    <btn block size="lg" bind:tap="onConfirm">下一步</btn>
+  </view>
+</view>
