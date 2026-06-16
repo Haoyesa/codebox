@@ -1,0 +1,12 @@
+/* @created 2026-06-16 v0.1 - 基础 reset */
+view, text, button, input, textarea, image, scroll-view, swiper, swiper-item {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  line-height: normal;
+}
+button::after { border: none; }

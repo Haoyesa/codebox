@@ -1,0 +1,35 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/identity/identity",
+    "pages/target/target",
+    "pages/import/import",
+    "pages/upload/upload",
+    "pages/camera/camera",
+    "pages/form/form",
+    "pages/confirm/confirm",
+    "pages/preview/preview",
+    "pages/history/history",
+    "pages/profile/profile"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "简历优化",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F9FAFB"
+  },
+  "tabBar": {
+    "color": "#6B7280",
+    "selectedColor": "#4F46E5",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页", "iconPath": "assets/tab-home.png", "selectedIconPath": "assets/tab-home-active.png" },
+      { "pagePath": "pages/history/history", "text": "历史", "iconPath": "assets/tab-history.png", "selectedIconPath": "assets/tab-history-active.png" },
+      { "pagePath": "pages/profile/profile", "text": "我的", "iconPath": "assets/tab-me.png", "selectedIconPath": "assets/tab-me-active.png" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
