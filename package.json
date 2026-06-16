@@ -1,0 +1,22 @@
+{
+  "name": "resume-mini-program",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered resume optimization mini-program",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "cloudfunctions/**/*.js"
+    ]
+  }
+}
