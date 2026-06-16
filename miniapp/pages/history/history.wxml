@@ -1,0 +1,17 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <empty wx:elif="{{!list.length}}" text="还没有历史简历" icon="📋"></empty>
+  <view wx:else class="list">
+    <block wx:for="{{list}}" wx:key="_id">
+      <view class="item" data-id="{{item._id}}" bindtap="onTap">
+        <view class="item-title">{{item.data.name || '未命名'}} · {{item.data.work[0].title || '求职中'}}</view>
+        <view class="item-meta">
+          <tag wx:if="{{item.optimized}}" type="primary">已优化</tag>
+          <tag wx:else>未优化</tag>
+          <text class="item-time">{{item.updatedAt}}</text>
+        </view>
+        <view class="item-score" wx:if="{{item.score}}">综合 {{item.score.total}}</view>
+      </view>
+    </block>
+  </view>
+</view>

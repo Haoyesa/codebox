@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "我的简历",
+  "usingComponents": { "tag": "/components/tag/index", "empty": "/components/empty/index" }
+}
