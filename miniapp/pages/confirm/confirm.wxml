@@ -1,0 +1,31 @@
+<view class="container" wx:if="{{data}}">
+  <view class="hint">请核对以下信息,有误可直接修改</view>
+
+  <card>
+    <view class="section-title">基本信息</view>
+    <input class="input" placeholder="姓名" data-field="name" value="{{data.name}}" bindinput="onInput" />
+    <input class="input" placeholder="手机号" data-field="phone" value="{{data.phone}}" bindinput="onInput" />
+    <input class="input" placeholder="邮箱" data-field="email" value="{{data.email}}" bindinput="onInput" />
+  </card>
+
+  <card>
+    <view class="section-title">工作经历({{data.work.length}})</view>
+    <block wx:for="{{data.work}}" wx:key="index" wx:for-index="idx">
+      <view class="work-item">
+        <view class="work-head">{{item.company}} · {{item.title}}</view>
+        <view class="work-period">{{item.startDate}} ~ {{item.endDate}}</view>
+        <textarea class="input textarea" data-idx="{{idx}}" data-field="description"
+                  value="{{item.description}}" bindinput="onWorkInput" auto-height></textarea>
+      </view>
+    </block>
+  </card>
+
+  <card>
+    <view class="section-title">技能</view>
+    <input class="input" placeholder="逗号分隔" value="{{skillsText}}" bindinput="onSkillsInput" />
+  </card>
+
+  <view class="footer-action">
+    <btn block size="lg" bind:tap="onConfirm">确认并继续</btn>
+  </view>
+</view>

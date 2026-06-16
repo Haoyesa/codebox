@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "确认简历",
+  "usingComponents": { "card": "/components/card/index", "btn": "/components/btn/index" }
+}
