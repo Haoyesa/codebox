@@ -1,12 +1,12 @@
-﻿<template>
-  <section :class="$attrs.class" class="uplog-wrap">
-    <p class="desc">UPlog 笔记编辑 | 卡片式内容排版与导出，HighMD 风格模板库与字号/对齐/间距精调。</p>
-    <div class="uplog-frame">
+<template>
+  <section :class="$attrs.class" class="highmd-wrap">
+    <p class="desc">HighMD 笔记编辑 | 卡片式内容排版与导出，HighMD 风格模板库与字号/对齐/间距精调。</p>
+    <div class="highmd-frame">
       <iframe
         ref="frameRef"
         src="./uplog-editor/index.html"
-        class="uplog-iframe"
-        title="UPlog 笔记编辑"
+        class="highmd-iframe"
+        title="HighMD 笔记编辑"
         referrerpolicy="no-referrer"
         allow="clipboard-read; clipboard-write"
       />
@@ -40,15 +40,15 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.uplog-wrap {
+.highmd-wrap {
   flex: 1;
   min-height: 0;
 }
-.uplog-wrap > .desc {
+.highmd-wrap > .desc {
   flex: 0 0 auto;
   margin: 0 0 10px;
 }
-.uplog-frame {
+.highmd-frame {
   flex: 1 1 0;
   min-height: 0;
   min-width: 0;
@@ -58,7 +58,7 @@ onBeforeUnmount(() => {
   background: #fff;
   box-shadow: var(--shadow);
 }
-.uplog-iframe {
+.highmd-iframe {
   display: block;
   width: 100%;
   height: 100%;

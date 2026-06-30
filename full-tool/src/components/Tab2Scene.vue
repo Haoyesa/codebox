@@ -152,6 +152,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 defineOptions({ inheritAttrs: false });
 import { Upload, Layers, Download, RefreshCcw, X, Image, FolderOutput } from 'lucide-vue-next';
+import { useSettings } from '../composables/useSettings.js';
 
 const formats = ['PNG', 'JPG', 'WEBP'];
 
@@ -169,6 +170,10 @@ const baseName = ref('');
 const overlayName = ref('');
 const baseWidth = ref(0);
 const baseHeight = ref(0);
+
+// ObjectURL refs for cleanup
+const baseImgUrl = ref('');
+const overlayImgUrl = ref('');
 
 const opacity = ref(100);
 const blendMode = ref('normal');
@@ -225,7 +230,7 @@ function renderOverlay() {
   ctx.globalAlpha = opacity.value / 100;
   ctx.globalCompositeOperation = blendMode.value;
   if (perspectiveMode.value && baseImg.value) {
-    var srcQuad = {
+    let srcQuad = {
       tl: [0, 0], tr: [overlayImg.value.naturalWidth, 0],
       bl: [0, overlayImg.value.naturalHeight], br: [overlayImg.value.naturalWidth, overlayImg.value.naturalHeight]
     };
@@ -239,7 +244,7 @@ function renderOverlay() {
 
 function updateOverlayCanvasSize() {
   if (!overlayCanvas.value || !canvasWrap.value) return;
-  var w, h;
+  let w, h;
   if (perspectiveMode.value && baseImg.value) {
     w = baseImg.value.width;
     h = baseImg.value.height;
@@ -265,7 +270,7 @@ function updateCornerPositions() {
   ['tl', 'tr', 'bl', 'br'].forEach(function(k) {
     const el = c.parentElement ? c.parentElement.querySelector('[data-corner="' + k + '"]') : null;
     if (!el) return;
-    var px, py;
+    let px, py;
     if (perspectiveMode.value) {
       px = cornersAbs[k][0];
       py = cornersAbs[k][1];
@@ -285,13 +290,13 @@ function updateCornerPositions() {
 //   | c f 1 |
 // Maps: dst(u,v,1) = H * src(x,y,1)
 function computeHomography(src, dst) {
-  var sx = src.tl[0], sy = src.tl[1], dx = dst.tl[0], dy = dst.tl[1];
-  var tx = src.tr[0], ty = src.tr[1], dx2 = dst.tr[0], dy2 = dst.tr[1];
-  var bx = src.bl[0], by = src.bl[1], dx3 = dst.bl[0], dy3 = dst.bl[1];
-  var rx = src.br[0], ry = src.br[1], dx4 = dst.br[0], dy4 = dst.br[1];
+  let sx = src.tl[0], sy = src.tl[1], dx = dst.tl[0], dy = dst.tl[1];
+  let tx = src.tr[0], ty = src.tr[1], dx2 = dst.tr[0], dy2 = dst.tr[1];
+  let bx = src.bl[0], by = src.bl[1], dx3 = dst.bl[0], dy3 = dst.bl[1];
+  let rx = src.br[0], ry = src.br[1], dx4 = dst.br[0], dy4 = dst.br[1];
 
   // Build 8x8 matrix (simplified construction)
-  var m = [
+  let m = [
     [-sx,-sy,-1, 0, 0, 0, sx*dx, sy*dx, dx],
     [0, 0, 0,-sx,-sy,-1, sx*dy, sy*dy, dy],
     [-tx,-ty,-1, 0, 0, 0, tx*dx2, ty*dx2, dx2],
@@ -303,22 +308,22 @@ function computeHomography(src, dst) {
   ];
 
   // Gaussian elimination to solve for h[0..7] (h[8]=1)
-  var h = [0,0,0,0,0,0,0,0,1];
-  for (var i = 0; i < 8; i++) {
-    var pivot = i;
-    for (var k = i + 1; k < 8; k++) {
+  let h = [0,0,0,0,0,0,0,0,1];
+  for (let i = 0; i < 8; i++) {
+    let pivot = i;
+    for (let k = i + 1; k < 8; k++) {
       if (Math.abs(m[k][i]) > Math.abs(m[pivot][i])) pivot = k;
     }
-    var tmp = m[i]; m[i] = m[pivot]; m[pivot] = tmp;
+    let tmp = m[i]; m[i] = m[pivot]; m[pivot] = tmp;
     tmp = h[i]; h[i] = h[pivot]; h[pivot] = tmp;
-    var div = m[i][i];
+    let div = m[i][i];
     if (Math.abs(div) < 1e-10) { h[i] = 1; continue; }
-    for (var j = i; j < 9; j++) m[i][j] /= div;
+    for (let j = i; j < 9; j++) m[i][j] /= div;
     h[i] /= div;
-    for (var k = 0; k < 8; k++) {
+    for (let k = 0; k < 8; k++) {
       if (k !== i) {
-        var factor = m[k][i];
-        for (var j = i; j < 9; j++) m[k][j] -= factor * m[i][j];
+        let factor = m[k][i];
+        for (let j = i; j < 9; j++) m[k][j] -= factor * m[i][j];
         h[k] -= factor * h[i];
       }
     }
@@ -328,49 +333,49 @@ function computeHomography(src, dst) {
 
 // Apply homography warp: draw srcImg onto dstCanvas mapping srcQuad -> dstQuad
 function warpImage(srcImg, dstCanvas, srcQuad, dstQuad, globalAlpha, compositeOp) {
-  var ow = srcImg.naturalWidth || srcImg.width;
-  var oh = srcImg.naturalHeight || srcImg.height;
-  var dw = dstCanvas.width;
-  var dh = dstCanvas.height;
+  let ow = srcImg.naturalWidth || srcImg.width;
+  let oh = srcImg.naturalHeight || srcImg.height;
+  let dw = dstCanvas.width;
+  let dh = dstCanvas.height;
 
-  var H = computeHomography(srcQuad, dstQuad);
+  let H = computeHomography(srcQuad, dstQuad);
 
   // Render to offscreen canvas first (so putImageData doesn't clobber dst content)
-  var warpCanvas = document.createElement('canvas');
+  let warpCanvas = document.createElement('canvas');
   warpCanvas.width = dw; warpCanvas.height = dh;
-  var warpCtx = warpCanvas.getContext('2d');
-  var warpData = warpCtx.createImageData(dw, dh);
-  var data = warpData.data;
+  let warpCtx = warpCanvas.getContext('2d');
+  let warpData = warpCtx.createImageData(dw, dh);
+  let data = warpData.data;
 
   // Source image data
-  var srcCanvas = document.createElement('canvas');
+  let srcCanvas = document.createElement('canvas');
   srcCanvas.width = ow; srcCanvas.height = oh;
-  var srcCtx = srcCanvas.getContext('2d');
+  let srcCtx = srcCanvas.getContext('2d');
   srcCtx.drawImage(srcImg, 0, 0);
-  var srcData = srcCtx.getImageData(0, 0, ow, oh).data;
+  let srcData = srcCtx.getImageData(0, 0, ow, oh).data;
 
-  var _a = H[0], _b = H[1], _c = H[2], _d = H[3], _e = H[4], _f = H[5], _g = H[6], _h = H[7];
+  let _a = H[0], _b = H[1], _c = H[2], _d = H[3], _e = H[4], _f = H[5], _g = H[6], _h = H[7];
 
-  for (var y = 0; y < dh; y++) {
-    for (var x = 0; x < dw; x++) {
-      var d = 1 / (_g * x + _h * y + 1);
-      var sx = (_a * x + _d * y + _c) * d;
-      var sy = (_b * x + _e * y + _f) * d;
+  for (let y = 0; y < dh; y++) {
+    for (let x = 0; x < dw; x++) {
+      let d = 1 / (_g * x + _h * y + 1);
+      let sx = (_a * x + _d * y + _c) * d;
+      let sy = (_b * x + _e * y + _f) * d;
 
-      var idx = (y * dw + x) * 4;
+      let idx = (y * dw + x) * 4;
       if (sx < 0 || sy < 0 || sx >= ow - 1 || sy >= oh - 1) {
         data[idx+3] = 0;
         continue;
       }
 
-      var x0 = Math.floor(sx), y0 = Math.floor(sy);
-      var x1 = Math.min(x0 + 1, ow - 1), y1 = Math.min(y0 + 1, oh - 1);
-      var fx = sx - x0, fy = sy - y0;
+      let x0 = Math.floor(sx), y0 = Math.floor(sy);
+      let x1 = Math.min(x0 + 1, ow - 1), y1 = Math.min(y0 + 1, oh - 1);
+      let fx = sx - x0, fy = sy - y0;
 
-      var sidx00 = (y0 * ow + x0) * 4;
-      var sidx10 = (y0 * ow + x1) * 4;
-      var sidx01 = (y1 * ow + x0) * 4;
-      var sidx11 = (y1 * ow + x1) * 4;
+      let sidx00 = (y0 * ow + x0) * 4;
+      let sidx10 = (y0 * ow + x1) * 4;
+      let sidx01 = (y1 * ow + x0) * 4;
+      let sidx11 = (y1 * ow + x1) * 4;
 
       data[idx]   = srcData[sidx00]   + (srcData[sidx10]   - srcData[sidx00])   * fx + (srcData[sidx01]   - srcData[sidx00])   * fy + (srcData[sidx11]   - srcData[sidx01]   - srcData[sidx10]   + srcData[sidx00])   * fx * fy;
       data[idx+1] = srcData[sidx00+1] + (srcData[sidx10+1] - srcData[sidx00+1]) * fx + (srcData[sidx01+1] - srcData[sidx00+1]) * fy + (srcData[sidx11+1] - srcData[sidx01+1] - srcData[sidx10+1] + srcData[sidx00+1]) * fx * fy;
@@ -382,7 +387,7 @@ function warpImage(srcImg, dstCanvas, srcQuad, dstQuad, globalAlpha, compositeOp
   warpCtx.putImageData(warpData, 0, 0);
 
   // Now draw warped result onto dstCanvas using standard compositing
-  var ctx = dstCanvas.getContext('2d');
+  let ctx = dstCanvas.getContext('2d');
   ctx.globalAlpha = (globalAlpha !== undefined ? globalAlpha : 100) / 100;
   ctx.globalCompositeOperation = (compositeOp || 'source-over');
   ctx.drawImage(warpCanvas, 0, 0);
@@ -426,15 +431,15 @@ function onDrag(e) {
   if (!wrap) return;
   const scale = zoom.value;
   if (perspectiveMode.value) {
-    var w = baseImg.value ? baseImg.value.width : wrap.offsetWidth;
-    var h = baseImg.value ? baseImg.value.height : wrap.offsetHeight;
-    var nx = dragStartCorners[0] + dx / scale;
-    var ny = dragStartCorners[1] + dy / scale;
+    let w = baseImg.value ? baseImg.value.width : wrap.offsetWidth;
+    let h = baseImg.value ? baseImg.value.height : wrap.offsetHeight;
+    let nx = dragStartCorners[0] + dx / scale;
+    let ny = dragStartCorners[1] + dy / scale;
     cornersAbs[dragCorner][0] = Math.max(0, Math.min(w, nx));
     cornersAbs[dragCorner][1] = Math.max(0, Math.min(h, ny));
   } else {
-    var nx2 = dragStartCorners[0] + dx / (wrap.offsetWidth * scale);
-    var ny2 = dragStartCorners[1] + dy / (wrap.offsetHeight * scale);
+    let nx2 = dragStartCorners[0] + dx / (wrap.offsetWidth * scale);
+    let ny2 = dragStartCorners[1] + dy / (wrap.offsetHeight * scale);
     corners[dragCorner][0] = Math.max(0, Math.min(1, nx2));
     corners[dragCorner][1] = Math.max(0, Math.min(1, ny2));
   }
@@ -485,11 +490,13 @@ function pickBase() { baseInput.value && baseInput.value.click(); }
 function pickOverlay() { overlayInput.value && overlayInput.value.click(); }
 
 function onBaseFile(e) {
-  var file = e.target.files && e.target.files[0];
+  const file = e.target.files && e.target.files[0];
   if (!file) return;
   baseName.value = file.name;
-  var url = URL.createObjectURL(file);
-  var img = new window.Image();
+  if (baseImgUrl.value) { URL.revokeObjectURL(baseImgUrl.value); baseImgUrl.value = ''; }
+  const url = URL.createObjectURL(file);
+  baseImgUrl.value = url;
+  const img = new window.Image();
   img.onload = function() {
     baseImg.value = img;
     baseWidth.value = img.width;
@@ -517,11 +524,13 @@ function onBaseFile(e) {
 }
 
 function onOverlayFile(e) {
-  var file = e.target.files && e.target.files[0];
+  const file = e.target.files && e.target.files[0];
   if (!file) return;
   overlayName.value = file.name;
-  var url = URL.createObjectURL(file);
-  var img = new window.Image();
+  if (overlayImgUrl.value) { URL.revokeObjectURL(overlayImgUrl.value); overlayImgUrl.value = ''; }
+  const url = URL.createObjectURL(file);
+  overlayImgUrl.value = url;
+  const img = new window.Image();
   img.onload = function() {
     overlayImg.value = img;
     updateOverlayCanvasSize();
@@ -551,11 +560,11 @@ function clearOverlay() {
 
 async function pickOutputDir() {
   if (!window.electronAPI) {
-    var d = prompt('输出目录');
+    let d = prompt('输出目录');
     if (d) outputDir.value = d;
     return;
   }
-  var r = await window.electronAPI.selectOutputDir();
+  let r = await window.electronAPI.selectOutputDir();
   if (!r.canceled && r.filePaths[0]) {
     outputDir.value = r.filePaths[0];
   }
@@ -567,43 +576,43 @@ async function startExport() {
   exportProgress.value = 0;
 
   try {
-    var canvas = document.createElement('canvas');
+    let canvas = document.createElement('canvas');
     canvas.width = baseImg.value.width;
     canvas.height = baseImg.value.height;
-    var ctx = canvas.getContext('2d');
+    let ctx = canvas.getContext('2d');
     ctx.drawImage(baseImg.value, 0, 0);
 
     ctx.globalAlpha = opacity.value / 100;
     ctx.globalCompositeOperation = blendMode.value;
 
     if (perspectiveMode.value) {
-      var srcQuad = {
+      let srcQuad = {
         tl: [0, 0], tr: [overlayImg.value.naturalWidth, 0],
         bl: [0, overlayImg.value.naturalHeight], br: [overlayImg.value.naturalWidth, overlayImg.value.naturalHeight]
       };
       warpImage(overlayImg.value, canvas, srcQuad, cornersAbs, opacity.value, blendMode.value);
     } else {
-      var wrap = canvasWrap.value;
+      let wrap = canvasWrap.value;
       if (!wrap) throw new Error('Canvas not found');
-      var xs = [corners.tl[0], corners.tr[0], corners.bl[0], corners.br[0]];
-      var ys = [corners.tl[1], corners.tr[1], corners.bl[1], corners.br[1]];
-      var minX = Math.min.apply(null, xs) * wrap.offsetWidth;
-      var maxX = Math.max.apply(null, xs) * wrap.offsetWidth;
-      var minY = Math.min.apply(null, ys) * wrap.offsetHeight;
-      var maxY = Math.max.apply(null, ys) * wrap.offsetHeight;
-      var sx = minX * (baseImg.value.width / wrap.offsetWidth);
-      var sy = minY * (baseImg.value.height / wrap.offsetHeight);
-      var sw = (maxX - minX) * (baseImg.value.width / wrap.offsetWidth);
-      var sh = (maxY - minY) * (baseImg.value.height / wrap.offsetHeight);
+      let xs = [corners.tl[0], corners.tr[0], corners.bl[0], corners.br[0]];
+      let ys = [corners.tl[1], corners.tr[1], corners.bl[1], corners.br[1]];
+      let minX = Math.min.apply(null, xs) * wrap.offsetWidth;
+      let maxX = Math.max.apply(null, xs) * wrap.offsetWidth;
+      let minY = Math.min.apply(null, ys) * wrap.offsetHeight;
+      let maxY = Math.max.apply(null, ys) * wrap.offsetHeight;
+      let sx = minX * (baseImg.value.width / wrap.offsetWidth);
+      let sy = minY * (baseImg.value.height / wrap.offsetHeight);
+      let sw = (maxX - minX) * (baseImg.value.width / wrap.offsetWidth);
+      let sh = (maxY - minY) * (baseImg.value.height / wrap.offsetHeight);
       ctx.drawImage(overlayImg.value, sx, sy, sw, sh);
     }
 
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 
-    var mimeMap = { PNG: 'image/png', JPG: 'image/jpeg', WEBP: 'image/webp' };
-    var mime = mimeMap[exportFormat.value] || 'image/png';
-    var quality = exportFormat.value === 'JPG' ? 0.92 : undefined;
+    let mimeMap = { PNG: 'image/png', JPG: 'image/jpeg', WEBP: 'image/webp' };
+    let mime = mimeMap[exportFormat.value] || 'image/png';
+    let quality = exportFormat.value === 'JPG' ? 0.92 : undefined;
 
     canvas.toBlob(async function(blob) {
       if (!blob) {
@@ -612,13 +621,13 @@ async function startExport() {
         return;
       }
       exportProgress.value = 50;
-      var name = '合成图_' + Date.now() + '.' + exportFormat.value.toLowerCase();
+      let name = '合成图_' + Date.now() + '.' + exportFormat.value.toLowerCase();
       if (window.electronAPI) {
-        var buf = await blob.arrayBuffer();
+        let buf = await blob.arrayBuffer();
         await window.electronAPI.writeFile(outputDir.value + '/' + name, Array.from(new Uint8Array(buf)));
       } else {
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
         a.href = url;
         a.download = name;
         a.click();
@@ -634,10 +643,15 @@ async function startExport() {
   }
 }
 
-var ro = null;
+let ro = null;
 
 onMounted(function() {
   nextTick(function() { window.lucide && window.lucide.createIcons(); });
+  // Load default output dir from settings
+  const defaultOut = useSettings().get('outputDir');
+  if (defaultOut && !outputDir.value) {
+    outputDir.value = defaultOut;
+  }
   if (canvasWrap.value) {
     ro = new ResizeObserver(function() {
       if (overlayImg.value) {
@@ -654,6 +668,8 @@ onUnmounted(function() {
   ro && ro.disconnect();
   window.removeEventListener('mousemove', onDrag);
   window.removeEventListener('mouseup', stopDrag);
+  if (baseImgUrl.value) { URL.revokeObjectURL(baseImgUrl.value); baseImgUrl.value = ''; }
+  if (overlayImgUrl.value) { URL.revokeObjectURL(overlayImgUrl.value); overlayImgUrl.value = ''; }
 });
 </script>
 

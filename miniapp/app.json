@@ -9,6 +9,9 @@
     "pages/form/form",
     "pages/confirm/confirm",
     "pages/preview/preview",
+    "pages/interview/interview",
+    "pages/cover-letter/cover-letter",
+    "pages/self-intro/self-intro",
     "pages/history/history",
     "pages/profile/profile"
   ],

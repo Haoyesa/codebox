@@ -271,6 +271,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import html2canvas from 'html2canvas';
+import { getExt, getMimeFromPath, safeOutputDir } from '../utils/file.js';
+import { yieldToMain } from '../utils/format.js';
+import { useSettings } from '../composables/useSettings.js';
 
 // 画布
 const canvas = reactive({
@@ -463,8 +466,7 @@ async function pickDecoration() {
   try {
     const fr = await window.electronAPI.readFile(filePath);
     if (!fr.success) throw new Error(fr.error);
-    const ext = (filePath.split('.').pop() || 'png').toLowerCase();
-    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : 'image/png';
+    const mime = getMimeFromPath(filePath);
     const blob = new Blob([fr.data], { type: mime });
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -547,8 +549,7 @@ async function pickBg() {
   const filePath = r.filePaths[0];
   const fr = await window.electronAPI.readFile(filePath);
   if (!fr.success) { window.showToast?.(fr.error, 'error'); return; }
-  const ext = (filePath.split('.').pop() || 'png').toLowerCase();
-  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const mime = getMimeFromPath(filePath);
   const blob = new Blob([fr.data], { type: mime });
   if (canvas.bgImg) try { URL.revokeObjectURL(canvas.bgImg); } catch (_) {}
   canvas.bgImg = URL.createObjectURL(blob);
@@ -869,8 +870,7 @@ async function previewAll() {
       const f = folder.files[0];
       const fr = await window.electronAPI.readFile(f.path);
       if (!fr.success) continue;
-      const ext = (f.path.split('.').pop() || 'png').toLowerCase();
-      const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const mime = getMimeFromPath(f.path);
       const blob = new Blob([fr.data], { type: mime });
       const url = URL.createObjectURL(blob);
       await new Promise((resolve, reject) => {
@@ -881,7 +881,7 @@ async function previewAll() {
     }
     zoom.value = 1;
     await nextTick();
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await yieldToMain();
     const out = await html2canvas(frame, {
       backgroundColor: canvas.transparent ? null : (canvas.solidBg ? canvas.bgColor : '#ffffff'),
       scale: 1, logging: false, useCORS: true, allowTaint: true
@@ -953,8 +953,7 @@ async function startGenerate() {
         if (chosen) {
           const fr = await window.electronAPI.readFile(chosen.path);
           if (fr.success) {
-            const ext = (chosen.path.split('.').pop() || 'png').toLowerCase();
-            const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+            const mime = getMimeFromPath(chosen.path);
             const blob = new Blob([fr.data], { type: mime });
             const url = URL.createObjectURL(blob);
             await new Promise((resolve, reject) => {
@@ -972,7 +971,7 @@ async function startGenerate() {
       }
 
       await nextTick();
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await yieldToMain();
 
       const out = await html2canvas(frame, {
         backgroundColor: canvas.transparent ? null : (canvas.solidBg ? canvas.bgColor : '#ffffff'),
@@ -985,8 +984,11 @@ async function startGenerate() {
       const ab = await blob.arrayBuffer();
       const idx = String(r + 1).padStart(3, '0');
       const name = `拼图_${idx}.png`;
-      await window.electronAPI.writeFile(outputDir.value + '/' + name, new Uint8Array(ab));
+      await window.electronAPI.writeFile(safeOutputDir(outputDir.value) + '/' + name, new Uint8Array(ab));
       genDone.value = r + 1;
+
+      // Yield every 5 iterations to keep UI responsive
+      if (r % 5 === 4) await yieldToMain();
     }
   } catch (err) {
     window.showToast?.('生成失败：' + err.message, 'error');
@@ -1017,8 +1019,7 @@ watch(images, () => {
       emptySlot._srcLoading = true;
       window.electronAPI.readFile(first.path).then(fr => {
         if (fr.success) {
-          const ext = (first.path.split('.').pop() || 'png').toLowerCase();
-          const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+          const mime = getMimeFromPath(first.path);
           const blob = new Blob([fr.data], { type: mime });
           if (emptySlot.src) try { URL.revokeObjectURL(emptySlot.src); } catch (_) {}
           emptySlot.src = URL.createObjectURL(blob);
@@ -1034,6 +1035,11 @@ onMounted(async () => {
   window.lucide?.createIcons();
   loadTemplates();
   document.addEventListener('keydown', onKeydown);
+  // Load default output dir from settings
+  const defaultOut = useSettings().get('outputDir');
+  if (defaultOut && !outputDir.value) {
+    outputDir.value = defaultOut;
+  }
 });
 </script>
 

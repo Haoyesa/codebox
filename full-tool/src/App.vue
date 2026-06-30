@@ -19,14 +19,9 @@
 
     <!-- Page content -->
     <main>
-      <Tab1Export :class="['page', { active: currentTab === 'p1' }]" />
-      <Tab2Scene :class="['page', { active: currentTab === 'p2' }]" />
-      <Tab3Puzzle :class="['page', { active: currentTab === 'p3' }]" />
-      <Tab4Feishu :class="['page', { active: currentTab === 'p4' }]" />
-      <Tab5Xhs :class="['page', { active: currentTab === 'p5' }]" />
-      <Tab6XhsGen :class="['page', { active: currentTab === 'p6' }]" />
-      <Tab7Uplog :class="['page', { active: currentTab === 'p7' }]" />
-      <Tab6Settings :class="['page', { active: currentTab === 'p8' }]" />
+      <keep-alive>
+        <component :is="currentTabComponent" :class="['page', { active: true }]" />
+      </keep-alive>
     </main>
 
     <!-- Toast notification -->
@@ -35,45 +30,39 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import {
-  FileText, Image as ImageIcon, LayoutGrid,
-  UploadCloud, ShoppingBag, Settings
-} from 'lucide-vue-next';
-import Tab1Export from './components/Tab1Export.vue';
-import Tab2Scene from './components/Tab2Scene.vue';
-import Tab3Puzzle from './components/Tab3Puzzle.vue';
-import Tab4Feishu from './components/Tab4Feishu.vue';
-import Tab5Xhs from './components/Tab5Xhs.vue';
-import Tab6XhsGen from './components/Tab6XhsGen.vue';
-import Tab6Settings from './components/Tab6Settings.vue';
-import Tab7Uplog from './components/Tab7Uplog.vue';
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
+import { ToastSymbol, createToast } from './composables/useToast.js';
+import { provide } from 'vue';
 
-// Tab 定义（对齐截图）
+// Tab 定义
 const tabs = [
-  { id: 'p1', label: '文档一键导出', icon: 'file-text' },
-  { id: 'p2', label: '场景化图片排版', icon: 'image' },
-  { id: 'p3', label: '百变拼图排版', icon: 'layout-grid' },
-  { id: 'p4', label: '飞书一键上传', icon: 'upload-cloud' },
-  { id: 'p5', label: '小红书商品下载', icon: 'shopping-bag' },
-  { id: 'p6', label: '小红书爆款素材', icon: 'flame' },
-  { id: 'p7', label: 'UPlog 笔记', icon: 'notebook-pen' },
-  { id: 'p8', label: '设置', icon: 'settings' }
+  { id: 'p1', label: '文档一键导出', icon: 'file-text', component: () => import('./components/Tab1Export.vue') },
+  { id: 'p2', label: '场景化图片排版', icon: 'image', component: () => import('./components/Tab2Scene.vue') },
+  { id: 'p3', label: '百变拼图排版', icon: 'layout-grid', component: () => import('./components/Tab3Puzzle.vue') },
+  { id: 'p4', label: '飞书一键上传', icon: 'upload-cloud', component: () => import('./components/Tab4Feishu.vue') },
+  { id: 'p5', label: '小红书商品下载', icon: 'shopping-bag', component: () => import('./components/Tab5Xhs.vue') },
+  { id: 'p6', label: '小红书爆款素材', icon: 'flame', component: () => import('./components/Tab6XhsGen.vue') },
+  { id: 'p7', label: 'HighMD', icon: 'notebook-pen', component: () => import('./components/Tab7Uplog.vue') },
+  { id: 'p8', label: '设置', icon: 'settings', component: () => import('./components/Tab6Settings.vue') }
 ];
 
 const currentTab = ref('p1');
 
-// Toast 系统
-const toast = ref({ message: '', type: '' });
-let toastTimer = null;
+// 组件映射缓存
+const componentCache = new Map();
 
-function showToast(message, type = '', duration = 2500) {
-  toast.value = { message, type };
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.value.message = '';
-  }, duration);
-}
+const currentTabComponent = computed(() => {
+  const tab = tabs.find(t => t.id === currentTab.value);
+  if (!tab) return null;
+  if (!componentCache.has(tab.id)) {
+    componentCache.set(tab.id, defineAsyncComponent(tab.component));
+  }
+  return componentCache.get(tab.id);
+});
+
+// Toast 系统 - provide 给子组件，同时保持 window.showToast 兼容
+const toast = createToast();
+provide(ToastSymbol, toast);
 
 function switchTab(id) {
   if (id === currentTab.value) return;
@@ -83,8 +72,8 @@ function switchTab(id) {
 }
 
 onMounted(() => {
+  window.showToast = toast.show;
   if (window.lucide) window.lucide.createIcons();
-  window.showToast = showToast;
 
   window.addEventListener('error', (e) => {
     console.error('[Global Error]', e.message, e.filename, e.lineno);

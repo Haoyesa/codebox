@@ -8,6 +8,33 @@ let mainWindow;
 
 const http = require('http');
 
+// ========== 安全辅助函数 ==========
+
+/**
+ * Check whether a target path is within allowed directories.
+ * Prevents directory traversal attacks from the renderer.
+ */
+function isPathAllowed(targetPath) {
+  if (typeof targetPath !== 'string' || !targetPath) return false;
+  const normalized = path.resolve(targetPath);
+  const allowed = [
+    app.getPath('home'),
+    app.getPath('desktop'),
+    app.getPath('documents'),
+    app.getPath('downloads'),
+    app.getPath('temp'),
+    app.getPath('userData'),
+    process.cwd()
+  ].filter(Boolean);
+  return allowed.some(base => normalized.startsWith(path.resolve(base)));
+}
+
+function validatePath(targetPath, operation) {
+  if (!isPathAllowed(targetPath)) {
+    throw new Error(`Path not allowed for ${operation}: ${targetPath}`);
+  }
+}
+
 function waitForVite(port, retries = 30) {
   return new Promise((resolve, reject) => {
     function tryPort(p) {
@@ -334,7 +361,7 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
           : ('退出码 ' + code +
              '（0xC0000409 常见于 DLL 版本冲突、杀毒拦截、或 VC++ 运行库缺失；' +
              '试一下关闭杀毒、用 LO 安装包里的 Repair 修一下）');
-        reject(new Error('LibreOffice ' + hint + ' | cmd: ' + cmdLine));
+        reject(new Error('LibreOffice ' + hint + ' | cmd: ' + loExe + ' ' + args.map(String).map(s => /[\s"&|<>^()]/.test(s) ? '"' + s + '"' : s).join(' ')));
       }
     });
   });
@@ -343,6 +370,7 @@ ipcMain.handle('libreoffice:convert', async (event, { inputPath, outputDir, form
 // 读取文件字节（供 renderer 解析 .docx 等使用）
 ipcMain.handle('fs:readFile', async (event, filePath) => {
   try {
+    validatePath(filePath, 'readFile');
     const buf = fs.readFileSync(filePath);
     return { success: true, data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
   } catch (err) {
@@ -389,6 +417,7 @@ ipcMain.handle('fs:readDir', async (event, dirPath, options) => {
 // 获取文件信息
 ipcMain.handle('fs:getFileInfo', async (event, filePath) => {
   try {
+    validatePath(filePath, 'getFileInfo');
     const stats = fs.statSync(filePath);
     return { success: true, size: stats.size, mtime: stats.mtime };
   } catch (err) {
@@ -399,6 +428,7 @@ ipcMain.handle('fs:getFileInfo', async (event, filePath) => {
 // 写入文件
 ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
   try {
+    validatePath(filePath, 'writeFile');
     const buffer = Buffer.from(data);
     fs.writeFileSync(filePath, buffer);
     return { success: true };
@@ -521,6 +551,7 @@ ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
 ipcMain.handle('fs:unlink', async (event, filePath) => {
   try {
     if (typeof filePath !== 'string' || !filePath) return { success: false, error: 'invalid path' };
+    validatePath(filePath, 'unlink');
     fs.unlinkSync(filePath);
     return { success: true };
   } catch (err) {
@@ -531,6 +562,7 @@ ipcMain.handle('fs:unlink', async (event, filePath) => {
 // 重命名文件
 ipcMain.handle('fs:renameFile', async (event, oldPath, newName) => {
   try {
+    validatePath(oldPath, 'renameFile');
     const dir = path.dirname(oldPath);
     const newPath = path.join(dir, newName);
     fs.renameSync(oldPath, newPath);

@@ -21,6 +21,18 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          pdfjs: ['pdfjs-dist'],
+          html2canvas: ['html2canvas'],
+          vendor: ['vue', 'vue-router'],
+          mammoth: ['mammoth'],
+          jspdf: ['jspdf']
+        }
+      }
+    }
   }
 });

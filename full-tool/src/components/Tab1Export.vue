@@ -202,6 +202,8 @@ import * as mammoth from 'mammoth';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { pdfToPngs } from '../utils/pdfToPngs.js';
+import { formatSize, truncatePath, getExt, getMimeFromPath, safeOutputDir, getBasename } from '../utils/file.js';
+import { useSettings } from '../composables/useSettings.js';
 
 // Formats
 const formats = ['PNG', 'JPG', 'PDF', 'SVG'];
@@ -246,18 +248,6 @@ const statusClass = computed(() => {
 });
 
 // Methods
-function truncatePath(p) {
-  if (!p) return '';
-  if (p.length <= 30) return p;
-  return '...' + p.slice(-27);
-}
-
-function formatSize(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
 
 async function pickFiles() {
   if (!window.electronAPI) {
@@ -280,7 +270,7 @@ async function pickFiles() {
     // Convert paths to file info objects
     state.files = result.filePaths.map(p => ({
       path: p,
-      name: p.split(/[\\/]/).pop(),
+      name: getBasename(p),
       size: 0
     }));
     state.statusText = `已选择 ${state.files.length} 个文件`;
@@ -305,13 +295,12 @@ async function pickFolder() {
       const supportedExt = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
       state.folders.push({
         path: folderPath,
-        name: folderPath.split(/[\\/]/).pop(),
+        name: getBasename(folderPath),
         files: dirResult.files.filter(f => {
-          const ext = f.split('.').pop().toLowerCase();
-          return supportedExt.includes(ext);
+          return supportedExt.includes(getExt(f));
         })
       });
-      state.statusText = `已选择文件夹：${folderPath.split(/[\\/]/).pop()}`;
+      state.statusText = `已选择文件夹：${getBasename(folderPath)}`;
       window.showToast?.('文件夹已添加', 'success');
       await nextTick();
       window.lucide?.createIcons();
@@ -360,7 +349,7 @@ async function convertDocxViaJS(filePath, format, scale) {
   const html = result.value || '';
   if (!html.trim()) throw new Error('docx 内容为空');
 
-  const baseName = filePath.split(/[\\/]/).pop().replace(/\.docx?$/i, '');
+  const baseName = getBasename(filePath).replace(/\.docx?$/i, '');
   const fmt = String(format || 'PNG').toUpperCase();
   const ext = fmt === 'JPG' ? 'jpg' : fmt === 'PDF' ? 'pdf' : 'png';
 
@@ -378,7 +367,7 @@ async function convertDocxViaJS(filePath, format, scale) {
     logging: false
   });
 
-  const safeDir = String(state.outputDir).replace(/[\\/]+$/, '');
+  const safeDir = safeOutputDir(state.outputDir);
   const outPath = safeDir + '/' + baseName + '.' + ext;
 
   if (fmt === 'PDF') {
@@ -430,14 +419,14 @@ async function startExport() {
   // 汇总所有待处理文件
   const allFiles = [];
   for (const f of state.files) {
-    allFiles.push({ path: f.path, name: f.name, ext: f.name.split('.').pop().toLowerCase() });
+    allFiles.push({ path: f.path, name: f.name, ext: getExt(f.name) });
   }
   for (const folder of state.folders) {
     for (const fileName of folder.files) {
       allFiles.push({
         path: folder.path + '/' + fileName,
         name: fileName,
-        ext: fileName.split('.').pop().toLowerCase()
+        ext: getExt(fileName)
       });
     }
   }
@@ -529,7 +518,7 @@ async function startExport() {
   // 按扩展名分组跳过文件
   const skipByExt = {};
   for (const name of state.skippedFiles) {
-    const ext = (name.split('.').pop() || '?').toLowerCase();
+    const ext = getExt(name);
     skipByExt[ext] = (skipByExt[ext] || 0) + 1;
   }
   const skipExtSummary = Object.keys(skipByExt).length
@@ -612,14 +601,14 @@ async function exportFullPreview() {
   // 汇总所有待处理文件
   const allFiles = [];
   for (const f of state.files) {
-    allFiles.push({ path: f.path, name: f.name, ext: f.name.split('.').pop().toLowerCase() });
+    allFiles.push({ path: f.path, name: f.name, ext: getExt(f.name) });
   }
   for (const folder of state.folders) {
     for (const fileName of folder.files) {
       allFiles.push({
         path: folder.path + '/' + fileName,
         name: fileName,
-        ext: fileName.split('.').pop().toLowerCase()
+        ext: getExt(fileName)
       });
     }
   }
@@ -804,6 +793,11 @@ onMounted(async () => {
   await nextTick();
   window.lucide?.createIcons();
   await checkLibreOffice();
+  // Load default output dir from settings
+  const defaultOut = useSettings().get('outputDir');
+  if (defaultOut && !state.outputDir) {
+    state.outputDir = defaultOut;
+  }
 });
 </script>
 
