@@ -1,8 +1,23 @@
 <template>
   <section :class="$attrs.class">
+    <!-- 设置搜索 -->
+    <div class="settings-search-row">
+      <div class="settings-search">
+        <i data-lucide="search" style="width:14px;height:14px;color:var(--text-3)"></i>
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="搜索设置项…"
+        />
+        <button v-if="searchQuery" class="btn-icon btn-xs" @click="searchQuery = ''" title="清空">
+          <i data-lucide="x" style="width:12px;height:12px"></i>
+        </button>
+      </div>
+    </div>
+
     <!-- 路径设置 -->
     <p class="desc">配置 LibreOffice 与默认输出目录。</p>
-    <div class="card">
+    <div class="card" :class="{ 'card-dim': !cardMatch(['路径设置']) }">
       <h3 class="card-title"><i data-lucide="folder-cog"></i> 路径设置</h3>
 
       <!-- LibreOffice 路径 -->
@@ -71,7 +86,7 @@
     <p class="desc" style="padding-top:18px;">授权管理与版本更新。</p>
     <div class="settings-row1">
       <!-- 授权管理 -->
-      <div class="card auth-card">
+      <div class="card auth-card" :class="{ 'card-dim': !cardMatch(['授权管理']) }">
         <h3 class="card-title"><i data-lucide="shield-check"></i> 授权管理</h3>
         <div class="form-row">
           <span class="form-label">授权密钥</span>
@@ -106,7 +121,7 @@
       </div>
 
       <!-- 基础信息 -->
-      <div class="card info-card">
+      <div class="card info-card" :class="{ 'card-dim': !cardMatch(['基础信息']) }">
         <h3 class="card-title"><i data-lucide="info"></i> 基础信息</h3>
         <div class="info-row">
           <span class="muted">当前版本：</span>
@@ -145,7 +160,7 @@
 
     <!-- 数据管理 -->
     <p class="desc" style="padding-top: 18px;">备份或恢复应用设置。</p>
-    <div class="card">
+    <div class="card" :class="{ 'card-dim': !cardMatch(['数据管理']) }">
       <h3 class="card-title"><i data-lucide="database"></i> 数据管理</h3>
       <div class="row" style="gap: 10px; flex-wrap: wrap;">
         <button class="btn btn-sm" @click="exportSettings">
@@ -172,7 +187,7 @@
 
     <!-- 运行日志 -->
     <p class="desc" style="padding-top: 18px;">查看操作过程、错误与提示。</p>
-    <div class="card">
+    <div class="card" :class="{ 'card-dim': !cardMatch(['运行日志']) }">
       <div class="row-spread" style="margin-bottom: 10px;">
         <h3 class="card-title" style="margin: 0;">
           <i data-lucide="terminal"></i> 运行日志
@@ -221,7 +236,7 @@
     </div>
 
     <!-- 联系开发者 -->
-    <div class="card contact-card">
+    <div class="card contact-card" :class="{ 'card-dim': !cardMatch(['联系开发者']) }">
       <div class="row" style="gap: 8px;">
         <i data-lucide="message-circle"></i>
         <span style="font-weight: 600;">联系开发者</span>
@@ -243,6 +258,19 @@ const toast = useToast();
 const settings = useSettings();
 const electronAPI = window.electronAPI;
 const platform = electronAPI?.platform || '';
+
+const searchQuery = ref('');
+
+function cardMatch(keywords) {
+  if (!searchQuery.value.trim()) return true;
+  const q = searchQuery.value.trim().toLowerCase();
+  return keywords.some(k => k.includes(q));
+}
+
+watch(searchQuery, async () => {
+  await nextTick();
+  window.lucide?.createIcons();
+});
 
 /* ---------- 路径设置 ---------- */
 const loPath = ref('');
@@ -823,6 +851,37 @@ onBeforeUnmount(() => {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+.settings-search-row { margin-bottom: 12px; }
+.settings-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: 320px;
+}
+.settings-search input {
+  flex: 1;
+  border: none; background: transparent;
+  font-size: 13px; color: var(--text);
+  outline: none;
+}
+.settings-search input::placeholder { color: var(--text-3); }
+.settings-search .btn-xs {
+  padding: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.settings-search .btn-xs:hover { color: var(--text); background: var(--panel-3); }
+.card-dim { opacity: 0.4; transition: opacity .2s; }
 
 @media (max-width: 900px) {
   .settings-row1 { grid-template-columns: 1fr; }

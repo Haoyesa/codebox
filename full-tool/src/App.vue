@@ -1,13 +1,13 @@
 <template>
   <div class="app">
     <!-- Top navigation bar -->
-    <header class="topbar">
+    <header class="topbar" @contextmenu.prevent="onGlobalContextMenu">
       <div class="topbar-inner">
         <div class="brand">
           <div class="brand-mark">F</div>
           <span class="brand-name">Full Tool</span>
         </div>
-        <nav class="tabs" role="tablist">
+        <nav class="tabs" role="tablist" @contextmenu.prevent="onGlobalContextMenu">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -87,11 +87,26 @@
 
     <!-- Keyboard Shortcut Guide -->
     <ShortcutGuide />
+
+    <!-- Global context menu -->
+    <div
+      v-if="globalCtxMenu.show"
+      class="global-ctx-menu"
+      :style="{ left: globalCtxMenu.x + 'px', top: globalCtxMenu.y + 'px' }"
+      @mousedown.stop
+    >
+      <div class="global-ctx-item" @click="reloadPage">刷新页面</div>
+      <div class="global-ctx-item" @click="toggleFullscreen">切换全屏</div>
+      <div class="global-ctx-item" @click="onToggleDevTools">开发者工具</div>
+      <div class="global-ctx-separator"></div>
+      <div class="global-ctx-item" @click="showAbout">关于</div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import pkg from '../package.json';
 import { ToastSymbol, createToast } from './composables/useToast.js';
 import { provide } from 'vue';
 import StatusBar from './components/StatusBar.vue';
@@ -119,6 +134,7 @@ const searchRef = ref(null);
 const searchQuery = ref('');
 const searchFocus = ref(false);
 const searchIndex = ref(0);
+const globalCtxMenu = ref({ show: false, x: 0, y: 0 });
 
 const searchItems = [
   { id: 'p1', title: '文档一键导出', desc: 'PDF/PPT/Excel 批量导出图片', icon: 'file-text', tab: 'p1' },
@@ -155,6 +171,45 @@ function goSearchItem(item) {
   searchQuery.value = '';
   searchFocus.value = false;
   searchIndex.value = 0;
+}
+
+// 全局右键菜单
+function onGlobalContextMenu(e) {
+  globalCtxMenu.value = { show: true, x: e.clientX, y: e.clientY };
+}
+
+function closeGlobalCtxMenu() {
+  globalCtxMenu.value.show = false;
+}
+
+function reloadPage() {
+  closeGlobalCtxMenu();
+  location.reload();
+}
+
+function toggleFullscreen() {
+  closeGlobalCtxMenu();
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function onToggleDevTools() {
+  closeGlobalCtxMenu();
+  if (!window.electronAPI) return;
+  try {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send('toggle-devtools');
+  } catch (e) {
+    console.warn('无法打开开发者工具', e);
+  }
+}
+
+function showAbout() {
+  closeGlobalCtxMenu();
+  toast.show(`Full Tool v${pkg.version}`, 'info');
 }
 
 // 组件映射缓存
@@ -208,13 +263,31 @@ function onKeydown(e) {
       window.dispatchEvent(new CustomEvent('app:shortcut', { detail: { action: 'save', tab: currentTab.value } }));
       return;
     }
+    // Ctrl+Z 撤销 / Ctrl+Shift+Z 重做
+    if (e.key === 'z' || e.key === 'Z') {
+      e.preventDefault();
+      const action = e.shiftKey ? 'redo' : 'undo';
+      window.dispatchEvent(new CustomEvent('app:undoRedo', { detail: { action, tab: currentTab.value } }));
+      return;
+    }
   }
   // ESC 关闭弹窗
   if (e.key === 'Escape') {
+    // 关闭全局右键菜单
+    if (globalCtxMenu.value.show) {
+      closeGlobalCtxMenu();
+      return;
+    }
     // 关闭图片预览
     if (window.imagePreview) window.imagePreview.close();
     // 触发 ESC 快捷键事件给当前 Tab
     window.dispatchEvent(new CustomEvent('app:shortcut', { detail: { action: 'escape', tab: currentTab.value } }));
+  }
+}
+
+function onDocumentClick(e) {
+  if (globalCtxMenu.value.show && !e.target.closest('.global-ctx-menu')) {
+    closeGlobalCtxMenu();
   }
 }
 
@@ -233,5 +306,44 @@ onMounted(() => {
     e.preventDefault();
   });
   document.addEventListener('keydown', onKeydown);
+  document.addEventListener('click', onDocumentClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocumentClick);
 });
 </script>
+
+<style>
+.global-ctx-menu {
+  position: fixed;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  z-index: 100;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.global-ctx-item {
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+.global-ctx-item:hover {
+  background: var(--panel-3);
+}
+.global-ctx-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+</style>

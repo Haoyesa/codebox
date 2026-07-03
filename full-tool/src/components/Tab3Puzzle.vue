@@ -141,6 +141,43 @@
 
         <div class="section-block">
           <h4 class="section-title">操作</h4>
+
+          <!-- 水印设置 -->
+          <div class="watermark-card" style="margin-bottom: 12px;">
+            <div class="setting-row" style="margin-bottom: 6px;">
+              <span class="setting-label">添加水印</span>
+              <label class="toggle">
+                <input type="checkbox" v-model="watermarkEnabled" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <template v-if="watermarkEnabled">
+              <div class="row" style="gap: 6px; margin-bottom: 6px;">
+                <span class="muted" style="font-size: 12px; flex-shrink: 0;">内容</span>
+                <input type="text" v-model="watermarkText" placeholder="水印文字" style="flex: 1; font-size: 12px;" />
+              </div>
+              <div class="row" style="gap: 6px; margin-bottom: 6px;">
+                <span class="muted" style="font-size: 12px; flex-shrink: 0;">位置</span>
+                <select v-model="watermarkPos" style="flex: 1; font-size: 12px;">
+                  <option value="tl">左上角</option>
+                  <option value="tr">右上角</option>
+                  <option value="bl">左下角</option>
+                  <option value="br">右下角</option>
+                  <option value="center">居中</option>
+                </select>
+              </div>
+              <div class="row" style="gap: 6px; margin-bottom: 6px; align-items: center;">
+                <span class="muted" style="font-size: 12px; flex-shrink: 0;">透明</span>
+                <input type="range" v-model.number="watermarkOpacity" min="0.1" max="1" step="0.05" style="flex: 1;" />
+                <span class="mono" style="font-size: 11px; min-width: 32px; text-align: right;">{{ Math.round(watermarkOpacity * 100) }}%</span>
+              </div>
+              <div class="row" style="gap: 6px; align-items: center;">
+                <span class="muted" style="font-size: 12px; flex-shrink: 0;">字号</span>
+                <input type="number" v-model.number="watermarkSize" min="8" max="200" style="flex: 1; font-size: 12px;" />
+              </div>
+            </template>
+          </div>
+
           <div class="format-row">
             <select v-model="outputFormat" class="format-select">
               <option value="png">PNG</option>
@@ -165,6 +202,15 @@
           </div>
           <div v-if="isGenerating" class="progress-bar" style="margin-top: 6px;">
             <div class="fill" :style="{ width: (genTotal ? (genDone / genTotal * 100) : 0) + '%' }"></div>
+          </div>
+          <div v-if="generateProgress.status === 'running' || generateProgress.status === 'done'" class="gen-progress-area" style="margin-top: 10px;">
+            <div class="gen-progress-header">
+              <span class="mono">{{ generateProgress.current }}/{{ generateProgress.total }}</span>
+              <span v-if="generateProgress.status === 'done'" class="tag tag-green" style="font-size:11px;">完成</span>
+            </div>
+            <div class="progress-bar-exp">
+              <div class="progress-fill-exp" :style="{ width: (generateProgress.total ? generateProgress.current / generateProgress.total * 100 : 0) + '%' }"></div>
+            </div>
           </div>
         </div>
       </aside>
@@ -208,6 +254,7 @@
           class="canvas-frame"
           :class="{ transparent: canvas.transparent, dragging: isDragging }"
           :style="frameStyle"
+          @contextmenu.prevent="onContextMenu"
           @dragover.prevent="onDragOver"
           @dragleave="onDragLeave"
           @drop.prevent="onDrop"
@@ -222,6 +269,7 @@
               v-for="el in elements"
               :key="el.id"
               class="el"
+              :data-id="el.id"
               :class="['el-' + el.type, { selected: selectedId === el.id || selectedIds.includes(el.id) }]"
               :style="elStyle(el)"
               @mousedown.stop="startDrag($event, el)"
@@ -305,6 +353,27 @@
       </div>
     </div>
 
+    <!-- 右键菜单 -->
+    <div
+      v-if="contextMenu.show"
+      class="ctx-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      @mousedown.stop
+    >
+      <template v-if="contextMenu.type === 'canvas'">
+        <div class="ctx-item" @click="addTextFromCtx">添加文字</div>
+        <div class="ctx-item" @click="addSlotFromCtx">添加坑位</div>
+        <div class="ctx-item" @click="pickDecorationFromCtx">添加图片</div>
+        <div class="ctx-item ctx-item-warn" @click="clearAllFromCtx">清空画布</div>
+      </template>
+      <template v-else>
+        <div class="ctx-item" @click="duplicateFromCtx">复制</div>
+        <div class="ctx-item ctx-item-warn" @click="deleteFromCtx">删除</div>
+        <div class="ctx-item" @click="bringToFrontFromCtx">置顶</div>
+        <div class="ctx-item" @click="sendToBackFromCtx">置底</div>
+      </template>
+    </div>
+
     <!-- 预览弹窗 -->
     <Teleport to="body">
       <div v-if="showPreviewModal" class="modal-backdrop" @click.self="closePreview">
@@ -337,8 +406,26 @@ import { getExt, getMimeFromPath, safeOutputDir } from '../utils/file.js';
 import { yieldToMain } from '../utils/format.js';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
+import { useUndoRedo } from '../composables/useUndoRedo.js';
 
 const toast = useToast();
+
+// 撤销/重做
+const history = useUndoRedo({
+  maxSteps: 30,
+  onChange: (state) => {
+    elements.value = state.elements || [];
+    Object.assign(canvas, state.canvas || {});
+    selectedId.value = null;
+    selectedIds.value = [];
+  }
+});
+function recordHistory() {
+  history.record({
+    elements: JSON.parse(JSON.stringify(elements.value)),
+    canvas: { width: canvas.width, height: canvas.height, transparent: canvas.transparent, solidBg: canvas.solidBg, bgColor: canvas.bgColor, bgImg: canvas.bgImg }
+  });
+}
 
 // 画布
 const canvas = reactive({
@@ -382,12 +469,18 @@ const showPreviewModal = ref(false);
 const canvasMenuOpen = ref(false);
 const isDragging = ref(false);
 
+// context menu state
+const contextMenu = ref({ show: false, x: 0, y: 0, type: 'canvas', targetId: null });
+
 // generation state
 const isGenerating = ref(false);
 const abortGen = ref(false);
 const genDone = ref(0);
 const genTotal = ref(0);
 const genStatus = ref('');
+
+// generate progress
+const generateProgress = ref({ current: 0, total: 0, status: 'idle' });
 
 // 模板 (names list + per-name data)
 const TEMPLATE_KEY = 'fulltool_puzzle_templates';
@@ -403,6 +496,13 @@ const canvasMenuAnchorRef = ref(null);
 // 输出格式
 const outputFormat = ref('png');
 const outputQuality = ref(0.92);
+
+// 水印设置
+const watermarkEnabled = ref(false);
+const watermarkText = ref('FullTool');
+const watermarkPos = ref('center'); // tl / tr / bl / br / center
+const watermarkOpacity = ref(0.5);
+const watermarkSize = ref(24);
 const outputMimeType = computed(() => {
   if (outputFormat.value === 'jpg') return 'image/jpeg';
   if (outputFormat.value === 'webp') return 'image/webp';
@@ -511,6 +611,7 @@ function addSlot() {
     w, h, index: slotCount
   });
   selectedId.value = elements.value[elements.value.length - 1].id;
+  recordHistory();
 }
 function addImageSlot() {
   slotCount++;
@@ -522,6 +623,7 @@ function addImageSlot() {
     w, h, index: slotCount, src: ''
   });
   selectedId.value = elements.value[elements.value.length - 1].id;
+  recordHistory();
 }
 function clearSlots() {
   elements.value = elements.value.filter(e => e.type !== 'slot' && e.type !== 'image-slot');
@@ -536,6 +638,7 @@ function addText() {
     text: '双击编辑文字', fontSize: 28, color: '#0f172a', weight: 600
   });
   selectedId.value = elements.value[elements.value.length - 1].id;
+  recordHistory();
 }
 function clearTexts() {
   elements.value = elements.value.filter(e => e.type !== 'text');
@@ -564,6 +667,7 @@ async function pickDecoration() {
         x: 40, y: 40, w: img.width * ratio, h: img.height * ratio
       });
       selectedId.value = elements.value[elements.value.length - 1].id;
+      recordHistory();
     };
     img.src = url;
   } catch (err) {
@@ -645,6 +749,7 @@ async function onDrop(e) {
     const last = elements.value[elements.value.length - 1];
     selectedId.value = last.id;
     toast.show(`已添加 ${addedCount} 张图片`, 'success');
+    recordHistory();
   }
 }
 
@@ -682,6 +787,7 @@ function removeEl(id) {
   elements.value = elements.value.filter(e => e.id !== id);
   if (selectedId.value === id) selectedId.value = null;
   selectedIds.value = selectedIds.value.filter(x => x !== id);
+  recordHistory();
 }
 
 // 批量删除
@@ -692,6 +798,7 @@ async function removeSelected() {
   elements.value = elements.value.filter(e => !ids.includes(e.id));
   selectedIds.value = [];
   selectedId.value = null;
+  recordHistory();
 }
 
 // 批量对齐
@@ -735,6 +842,7 @@ function alignSelected(direction) {
     }
   }
   toast.show('对齐完成', 'success');
+  recordHistory();
 }
 
 // 批量统一尺寸
@@ -755,6 +863,7 @@ function resizeSelected(mode) {
     targets.forEach(e => { e.w = avgW; e.h = avgH; });
   }
   toast.show('尺寸已统一', 'success');
+  recordHistory();
 }
 
 // 拖动 / 缩放
@@ -796,9 +905,71 @@ function onDragMove(e) {
   }
 }
 function onDragEnd() {
+  if (dragCtx) recordHistory();
   dragCtx = null;
   window.removeEventListener('mousemove', onDragMove);
   window.removeEventListener('mouseup', onDragEnd);
+}
+
+// 右键菜单
+function onContextMenu(e) {
+  e.preventDefault();
+  closeContextMenu();
+  const elDom = e.target.closest('.el');
+  if (elDom) {
+    const id = elDom.dataset.id;
+    contextMenu.value = { show: true, x: e.clientX, y: e.clientY, type: 'element', targetId: id };
+  } else {
+    contextMenu.value = { show: true, x: e.clientX, y: e.clientY, type: 'canvas', targetId: null };
+  }
+  setTimeout(() => document.addEventListener('click', onDocClickCloseCtxMenu), 0);
+}
+function onDocClickCloseCtxMenu(e) {
+  if (e.target.closest('.ctx-menu')) return;
+  closeContextMenu();
+}
+function closeContextMenu() {
+  contextMenu.value.show = false;
+  document.removeEventListener('click', onDocClickCloseCtxMenu);
+}
+
+// Canvas context-menu actions
+function addTextFromCtx() { addText(); closeContextMenu(); }
+function addSlotFromCtx() { addSlot(); closeContextMenu(); }
+async function pickDecorationFromCtx() { await pickDecoration(); closeContextMenu(); }
+async function clearAllFromCtx() { await clearAllElements(); closeContextMenu(); }
+// Element context-menu actions
+function duplicateFromCtx() {
+  if (!contextMenu.value.targetId) return;
+  const idx = elements.value.findIndex(e => e.id === contextMenu.value.targetId);
+  if (idx < 0) return;
+  const src = elements.value[idx];
+  const copy = { ...src, id: newId(), x: src.x + 20, y: src.y + 20 };
+  if (src.type === 'slot' || src.type === 'image-slot') copy.index = ++slotCount;
+  elements.value.push(copy);
+  selectedId.value = copy.id;
+  closeContextMenu();
+}
+function deleteFromCtx() {
+  if (!contextMenu.value.targetId) return;
+  removeEl(contextMenu.value.targetId);
+  closeContextMenu();
+}
+function bringToFrontFromCtx() {
+  if (!contextMenu.value.targetId) return;
+  const idx = elements.value.findIndex(e => e.id === contextMenu.value.targetId);
+  if (idx < 0 || idx === elements.value.length - 1) return;
+  const [el] = elements.value.splice(idx, 1);
+  elements.value.push(el);
+  closeContextMenu();
+}
+function sendToBackFromCtx() {
+  if (!contextMenu.value.targetId) return;
+  const idx = elements.value.findIndex(e => e.id === contextMenu.value.targetId);
+  if (idx <= 0) return;
+  const [el] = elements.value.splice(idx, 1);
+  elements.value.unshift(el);
+  closeContextMenu();
 }
 
 // 背景 / 图片
@@ -1007,6 +1178,7 @@ async function clearAllElements() {
   elements.value = [];
   selectedId.value = null;
   closeCanvasMenu();
+  recordHistory();
 }
 
 function fitToView() {
@@ -1189,6 +1361,7 @@ async function startGenerate() {
   genDone.value = 0;
   genTotal.value = total;
   genStatus.value = '准备中…';
+  generateProgress.value = { current: 0, total, status: 'running' };
 
   const prevSrcs = new Map(slots.map(s => [s.id, s.src]));
 
@@ -1240,12 +1413,44 @@ async function startGenerate() {
         useCORS: true,
         allowTaint: true
       });
+
+      // 绘制全局水印
+      if (watermarkEnabled.value) {
+        const wctx = out.getContext('2d');
+        wctx.save();
+        wctx.globalAlpha = watermarkOpacity.value;
+        wctx.font = `${watermarkSize.value}px sans-serif`;
+        wctx.fillStyle = 'rgba(255,255,255,0.8)';
+        wctx.shadowColor = 'rgba(0,0,0,0.3)';
+        wctx.shadowBlur = 4;
+        wctx.shadowOffsetX = 1;
+        wctx.shadowOffsetY = 1;
+        const text = watermarkText.value || 'FullTool';
+        const metrics = wctx.measureText(text);
+        const tw = metrics.width;
+        const th = watermarkSize.value;
+        const cw = out.width;
+        const ch = out.height;
+        const pad = Math.max(20, watermarkSize.value);
+        let x, y;
+        switch (watermarkPos.value) {
+          case 'tl': x = pad; y = pad + th * 0.8; break;
+          case 'tr': x = cw - tw - pad; y = pad + th * 0.8; break;
+          case 'bl': x = pad; y = ch - pad; break;
+          case 'br': x = cw - tw - pad; y = ch - pad; break;
+          case 'center': default: x = (cw - tw) / 2; y = (ch + th * 0.8) / 2; break;
+        }
+        wctx.fillText(text, x, y);
+        wctx.restore();
+      }
+
       const blob = await new Promise(resolve => out.toBlob(resolve, outputMimeType.value, outputFormat.value !== 'png' ? outputQuality.value : undefined));
       const ab = await blob.arrayBuffer();
       const idx = String(r + 1).padStart(3, '0');
       const name = `拼图_${idx}.${outputExt.value}`;
       await window.electronAPI.writeFile(safeOutputDir(outputDir.value) + '/' + name, new Uint8Array(ab));
       genDone.value = r + 1;
+      generateProgress.value.current = r + 1;
 
       // Yield every 5 iterations to keep UI responsive
       if (r % 5 === 4) await yieldToMain();
@@ -1263,7 +1468,9 @@ async function startGenerate() {
     const wasAbort = abortGen.value;
     abortGen.value = false;
     genStatus.value = wasAbort ? `已停止（${genDone.value} / ${total}）` : `完成 ${genDone.value} 张`;
+    generateProgress.value.status = wasAbort ? 'error' : 'done';
     toast.show(genStatus.value, wasAbort ? 'warn' : 'success');
+    setTimeout(() => { generateProgress.value = { current: 0, total: 0, status: 'idle' }; }, 3000);
   }
 }
 
@@ -1322,6 +1529,15 @@ onMounted(async () => {
   window.lucide?.createIcons();
   loadTemplates();
   document.addEventListener('keydown', onKeydown);
+  // Undo/redo
+  const onUndoRedo = (e) => {
+    if (e.detail.tab !== 'p3') return;
+    if (e.detail.action === 'undo') history.undo();
+    else history.redo();
+  };
+  window.addEventListener('app:undoRedo', onUndoRedo);
+  // Record initial state after templates loaded
+  setTimeout(() => recordHistory(), 500);
   // Load default output dir from settings
   const defaultOut = useSettings().get('outputDir');
   if (defaultOut && !outputDir.value) {
@@ -1814,4 +2030,68 @@ onMounted(async () => {
   min-width: 32px;
   text-align: right;
   flex-shrink: 0;
-}</style>
+}
+
+/* ============================================================
+   右键上下文菜单
+   ============================================================ */
+.ctx-menu {
+  position: fixed;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  z-index: 100;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ctx-item {
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+.ctx-item:hover {
+  background: var(--panel-3);
+}
+.ctx-item-warn {
+  color: var(--primary);
+}
+.ctx-item-warn:hover {
+  background: var(--primary-soft);
+}
+
+/* ============================================================
+   批量生成进度条
+   ============================================================ */
+.gen-progress-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gen-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.progress-bar-exp {
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill-exp {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--neon-magenta));
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+</style>

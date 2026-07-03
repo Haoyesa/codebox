@@ -108,6 +108,17 @@
             </select>
 
             <div class="divider"></div>
+            <div class="setting-row"><span class="setting-label">裁剪</span></div>
+            <div v-if="activeOverlay.crop" class="crop-info" style="margin-bottom: 8px; font-size: 12px; color: var(--text-2);">
+              <span class="tag">{{ activeOverlay.crop.w }} x {{ activeOverlay.crop.h }}</span>
+              <span class="muted">@({{ activeOverlay.crop.x }}, {{ activeOverlay.crop.y }})</span>
+            </div>
+            <div v-else class="muted" style="margin-bottom: 8px; font-size: 12px;">未设置裁剪区</div>
+            <button class="btn btn-block btn-sm" @click="resetCrop">
+              <i data-lucide="refresh-ccw"></i>重置裁剪
+            </button>
+
+            <div class="divider"></div>
             <div class="setting-row">
               <span class="setting-label">透视变换</span>
               <label class="toggle">
@@ -177,13 +188,51 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Upload, Layers, Download, RefreshCcw, X, Image, FolderOutput } from 'lucide-vue-next';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
+import { useUndoRedo } from '../composables/useUndoRedo.js';
 
 const toast = useToast();
 defineOptions({ inheritAttrs: false });
+
+// Undo/redo — only records overlay config (corners, opacity, blendMode, etc.), not img objects
+const history = useUndoRedo({
+  maxSteps: 30,
+  onChange: (state) => {
+    if (!state.overlays) return;
+    for (const saved of state.overlays) {
+      const ov = overlays.value.find(o => o.id === saved.id);
+      if (ov) {
+        ov.opacity = saved.opacity;
+        ov.blendMode = saved.blendMode;
+        ov.perspective = saved.perspective;
+        ov.crop = saved.crop ? { ...saved.crop } : null;
+        ov.corners = JSON.parse(JSON.stringify(saved.corners));
+        ov.cornersAbs = JSON.parse(JSON.stringify(saved.cornersAbs));
+      }
+    }
+    if (state.activeOverlayId) activeOverlayId.value = state.activeOverlayId;
+    renderOverlay();
+    nextTick(updateCornerPositions);
+  }
+});
+function recordHistory() {
+  history.record({
+    overlays: overlays.value.map(o => ({
+      id: o.id,
+      opacity: o.opacity,
+      blendMode: o.blendMode,
+      perspective: o.perspective,
+      crop: o.crop ? { ...o.crop } : null,
+      corners: JSON.parse(JSON.stringify(o.corners)),
+      cornersAbs: JSON.parse(JSON.stringify(o.cornersAbs)),
+      fileName: o.fileName
+    })),
+    activeOverlayId: activeOverlayId.value
+  });
+}
 
 const formats = ['PNG', 'JPG', 'WEBP'];
 
@@ -243,6 +292,7 @@ function createOverlay(fileName, dataUrl, img) {
     opacity: 100,
     blendMode: 'normal',
     perspective: false,
+    crop: null, // { x, y, w, h } 像素，相对于叠图原始尺寸
     corners: {
       tl: [0.1, 0.1],
       tr: [0.9, 0.1],
@@ -455,6 +505,15 @@ function resetCorners() {
   }
   renderOverlay();
   nextTick(updateCornerPositions);
+  recordHistory();
+}
+
+function resetCrop() {
+  const ov = activeOverlay.value;
+  if (!ov) return;
+  ov.crop = null;
+  toast.show('裁剪已重置', 'success');
+  recordHistory();
 }
 
 function startDrag(corner, e) {
@@ -496,9 +555,11 @@ function onDrag(e) {
   }
   renderOverlay();
   nextTick(updateCornerPositions);
+  recordHistory();
 }
 
 function stopDrag() {
+  if (dragCorner) recordHistory();
   dragCorner = null;
   window.removeEventListener('mousemove', onDrag);
   window.removeEventListener('mouseup', stopDrag);
@@ -523,12 +584,58 @@ function onPerspectiveModeChange() {
     renderOverlay();
     nextTick(updateCornerPositions);
   });
+  recordHistory();
 }
 
 function onWheel(e) {
   const delta = e.deltaY > 0 ? -0.1 : 0.1;
   zoom.value = Math.max(0.25, Math.min(3, zoom.value + delta));
   updateZoom();
+}
+
+function onKeyArrow(e) {
+  if (!activeOverlayId.value) return;
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+  if (!arrowKeys.includes(e.key)) return;
+
+  e.preventDefault();
+
+  const ov = activeOverlay.value;
+  if (!ov) return;
+
+  const step = e.shiftKey ? 10 : 1;
+  let dx = 0, dy = 0;
+  if (e.key === 'ArrowUp') dy = -step;
+  if (e.key === 'ArrowDown') dy = step;
+  if (e.key === 'ArrowLeft') dx = -step;
+  if (e.key === 'ArrowRight') dx = step;
+
+  if (ov.perspective && baseImg.value) {
+    const w = baseImg.value.width;
+    const h = baseImg.value.height;
+    ['tl', 'tr', 'bl', 'br'].forEach(function(k) {
+      ov.cornersAbs[k][0] = Math.max(0, Math.min(w, ov.cornersAbs[k][0] + dx));
+      ov.cornersAbs[k][1] = Math.max(0, Math.min(h, ov.cornersAbs[k][1] + dy));
+    });
+  } else {
+    const c = overlayCanvas.value;
+    if (!c) return;
+    const w = c.width;
+    const h = c.height;
+    if (!w || !h) return;
+    const dxp = dx / w;
+    const dyp = dy / h;
+    ['tl', 'tr', 'bl', 'br'].forEach(function(k) {
+      ov.corners[k][0] = Math.max(0, Math.min(1, ov.corners[k][0] + dxp));
+      ov.corners[k][1] = Math.max(0, Math.min(1, ov.corners[k][1] + dyp));
+    });
+  }
+
+  renderOverlay();
+  nextTick(updateCornerPositions);
 }
 
 function onCanvasClick(e) {
@@ -680,11 +787,15 @@ async function startExport() {
         let maxX = Math.max.apply(null, xs) * wrap.offsetWidth;
         let minY = Math.min.apply(null, ys) * wrap.offsetHeight;
         let maxY = Math.max.apply(null, ys) * wrap.offsetHeight;
-        let sx = minX * (baseImg.value.width / wrap.offsetWidth);
-        let sy = minY * (baseImg.value.height / wrap.offsetHeight);
-        let sw = (maxX - minX) * (baseImg.value.width / wrap.offsetWidth);
-        let sh = (maxY - minY) * (baseImg.value.height / wrap.offsetHeight);
-        ctx.drawImage(ov.img, sx, sy, sw, sh);
+        let dx = minX * (baseImg.value.width / wrap.offsetWidth);
+        let dy = minY * (baseImg.value.height / wrap.offsetHeight);
+        let dw = (maxX - minX) * (baseImg.value.width / wrap.offsetWidth);
+        let dh = (maxY - minY) * (baseImg.value.height / wrap.offsetHeight);
+        if (ov.crop && ov.crop.w > 0 && ov.crop.h > 0) {
+          ctx.drawImage(ov.img, ov.crop.x, ov.crop.y, ov.crop.w, ov.crop.h, dx, dy, dw, dh);
+        } else {
+          ctx.drawImage(ov.img, dx, dy, dw, dh);
+        }
       }
     }
 
@@ -742,12 +853,21 @@ onMounted(function() {
     });
     ro.observe(canvasWrap.value);
   }
+  window.addEventListener('keydown', onKeyArrow);
+  // Undo/redo
+  const onUndoRedo = function(e) {
+    if (e.detail.tab !== 'p2') return;
+    if (e.detail.action === 'undo') history.undo();
+    else history.redo();
+  };
+  window.addEventListener('app:undoRedo', onUndoRedo);
 });
 
-onUnmounted(function() {
+onBeforeUnmount(function() {
   ro && ro.disconnect();
   window.removeEventListener('mousemove', onDrag);
   window.removeEventListener('mouseup', stopDrag);
+  window.removeEventListener('keydown', onKeyArrow);
   if (baseImgUrl.value) { URL.revokeObjectURL(baseImgUrl.value); baseImgUrl.value = ''; }
   for (const ov of overlays.value) {
     if (ov.dataUrl) URL.revokeObjectURL(ov.dataUrl);

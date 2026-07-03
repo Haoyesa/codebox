@@ -715,6 +715,7 @@ async function startExport() {
     : '';
   const skipHint = skipped > 0 ? ' — 需 LibreOffice，可点 Tab1 底部下载或手动指定 soffice.exe' : '';
 
+  const dirOpened = await openOutputDir();
   if (state.cancelRequested) {
     state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + skipExtSummary + '）';
     toast.show('导出已取消', 'warn');
@@ -722,6 +723,7 @@ async function startExport() {
     let msg = '导出完成：成功 ' + successCount;
     if (failed > 0) msg += '，失败 ' + failed;
     if (skipped > 0) msg += '，跳过 ' + skipped + skipExtSummary;
+    if (dirOpened) msg += '（已打开输出目录）';
     state.statusText = msg + skipHint;
     toast.show(msg, failed > 0 ? 'warn' : (skipped > 0 ? 'warn' : 'success'));
   }
@@ -926,6 +928,7 @@ async function exportFullPreview() {
   // 收尾汇总
   const failed = state.failedFiles.length;
   const skipped = state.skippedFiles.length;
+  const dirOpened = await openOutputDir();
   if (state.cancelRequested) {
     state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + '）';
     toast.show('预览导出已取消', 'warn');
@@ -933,11 +936,23 @@ async function exportFullPreview() {
     let msg = '预览图已生成：' + successCount + ' 张';
     if (failed > 0) msg += '，失败 ' + failed;
     if (skipped > 0) msg += '，跳过 ' + skipped;
+    if (dirOpened) msg += '（已打开输出目录）';
     state.statusText = msg;
     toast.show(msg, failed > 0 || skipped > 0 ? 'warn' : 'success');
   }
   state.isExporting = false;
   state.currentFile = '';
+}
+
+async function openOutputDir() {
+  if (!window.electronAPI || !state.outputDir) return false;
+  try {
+    const fileUrl = 'file:///' + state.outputDir.replace(/\\/g, '/');
+    await window.electronAPI.openExternal(fileUrl);
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function simulateExport() {

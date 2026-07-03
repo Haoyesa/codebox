@@ -116,6 +116,16 @@
         </span>
       </div>
 
+      <div v-if="uploadProgress.status !== 'idle'" class="upload-progress">
+        <div class="progress-bar-exp">
+          <div class="progress-fill-exp" :style="{ width: (uploadProgress.total ? uploadProgress.current / uploadProgress.total * 100 : 0) + '%' }"></div>
+        </div>
+        <div class="row-spread" style="font-size: 12px; color: var(--text-2); margin-top: 6px;">
+          <span>{{ uploadProgress.status === 'running' ? '上传中…' : '完成' }}</span>
+          <span class="mono">{{ uploadProgress.current }}/{{ uploadProgress.total }}</span>
+        </div>
+      </div>
+
       <div v-if="!appId || !appSecret" class="empty-state" style="margin-top: 16px; border-top: 1px solid var(--border-2); padding-top: 24px;">
         <i data-lucide="settings"></i>
         <p>配置飞书应用信息后开始上传</p>
@@ -156,6 +166,9 @@ const rowEnd = ref(2);
 
 const folders = ref([]); // {id, path, recursive, perRow}
 let folderId = 1;
+
+const uploadProgress = ref({ current: 0, total: 0, status: 'idle' });
+let hideProgressTimer = null;
 
 const state = reactive({
   isVerifying: false,
@@ -247,6 +260,8 @@ async function startUpload() {
   state.statusText = '上传中…';
   state.progress = { total: 0, done: 0, percent: 0, label: '' };
   state.logs = [];
+  uploadProgress.value = { current: 0, total: 0, status: 'running' };
+  if (hideProgressTimer) { clearTimeout(hideProgressTimer); hideProgressTimer = null; }
 
   try {
     // 1) 展开文件夹，收集所有图片
@@ -298,6 +313,8 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
       throw new Error('行范围没有命中任何记录');
     }
     state.progress.total = rows.length;
+    uploadProgress.value.total = rows.length;
+    uploadProgress.value.current = 0;
     log('info', `将处理 ${rows.length} 行`);
 
     // 4) 逐行上传
@@ -338,6 +355,7 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
 
       state.progress.done = r + 1;
       state.progress.percent = Math.round((state.progress.done / state.progress.total) * 100);
+      uploadProgress.value.current = r + 1;
     }
 
     if (abortFlag) {
@@ -356,6 +374,11 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
     state.dotClass = 'err';
     toast.show(err.message, 'error');
   } finally {
+    uploadProgress.value.status = 'done';
+    if (hideProgressTimer) clearTimeout(hideProgressTimer);
+    hideProgressTimer = setTimeout(() => {
+      uploadProgress.value = { current: 0, total: 0, status: 'idle' };
+    }, 3000);
     state.isUploading = false;
   }
 }
@@ -438,4 +461,18 @@ onMounted(async () => {
 .log-line.ok .log-msg { color: var(--ok-deep); }
 .log-line.err .log-msg { color: var(--primary-deep); }
 .log-line.info .log-msg { color: var(--text-2); }
+
+.upload-progress { margin-top: 12px; }
+.progress-bar-exp {
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill-exp {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--neon-magenta));
+  border-radius: 3px;
+  transition: width .3s ease;
+}
 </style>
