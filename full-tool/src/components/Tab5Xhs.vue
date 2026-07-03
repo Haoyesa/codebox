@@ -50,6 +50,9 @@
                 <div class="fill" :style="{ width: t.percent + '%' }"></div>
               </div>
               <div v-if="t.message" class="task-msg">{{ t.message }}</div>
+              <div v-if="t.status === 'error'" style="margin-top: 4px;">
+                <button class="btn btn-sm" @click="retryTask(t)">重试</button>
+              </div>
             </div>
           </div>
         </div>
@@ -63,6 +66,7 @@
             <button class="btn-icon" @click="browserBack" title="后退"><i data-lucide="arrow-left"></i></button>
             <button class="btn-icon" @click="browserRefresh" title="刷新"><i data-lucide="rotate-cw"></i></button>
             <button class="btn-icon" @click="browserHome" title="首页"><i data-lucide="home"></i></button>
+            <button class="btn btn-sm" @click="manualParse" title="重新注入解析脚本">手动解析</button>
           </div>
         </div>
         <div class="browser-frame">
@@ -154,64 +158,7 @@ async function startDownload() {
 
   for (const t of tasks.value) {
     if (abortFlag) break;
-    t.status = 'running';
-    t.message = '抓取商品信息…';
-    try {
-      const goodId = parseXhsUrl(t.url);
-      if (!goodId) {
-        t.status = 'error';
-        t.message = '无法解析商品 ID';
-        continue;
-      }
-
-      // 调用 webview 内部页面拿到 cookies（让 webview 访问商品页）
-      const meta = await fetchGoodsFromWebview(webviewRef.value, t.url);
-      if (!meta) {
-        // 回退: 尝试直接 fetch
-        t.message = '直连抓取（无 Cookie）…';
-        const direct = await directFetch(t.url);
-        if (!direct) {
-          t.status = 'error';
-          t.message = '抓取失败：需要登录态，请在右侧浏览器中登录后再试';
-          continue;
-        }
-        Object.assign(t, { title: direct.title, images: direct.images });
-      } else {
-        Object.assign(t, { title: meta.title, images: meta.images });
-      }
-
-      if (!t.images || t.images.length === 0) {
-        t.status = 'error';
-        t.message = '未抓到图片';
-        continue;
-      }
-      t.message = `共 ${t.images.length} 张图片`;
-
-      // 下载图片
-      for (let i = 0; i < t.images.length; i++) {
-        if (abortFlag) break;
-        const url = t.images[i];
-        try {
-          const buf = await fetchAsBuffer(url);
-          if (!buf) { t.message = `第 ${i + 1} 张下载失败`; continue; }
-          const ext = (url.match(/\.(png|jpg|jpeg|webp)/i)?.[1] || 'jpg').toLowerCase();
-          const safeTitle = (t.title || goodId).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
-          const fileName = `${safeTitle}_${String(i + 1).padStart(2, '0')}.${ext}`;
-          const fullPath = outputDir.value.replace(/[\\/]+$/, '') + '/' + fileName;
-          await window.electronAPI.writeFile(fullPath, buf);
-        } catch (e) {
-          toast.show('写入文件失败: ' + e.message, 'error');
-        }
-        t.percent = Math.round(((i + 1) / t.images.length) * 100);
-      }
-
-      t.status = abortFlag ? 'skipped' : 'done';
-      t.percent = 100;
-      t.message = abortFlag ? '已停止' : `已保存 ${t.images.length} 张`;
-    } catch (e) {
-      t.status = 'error';
-      t.message = e.message;
-    }
+    await scrapeSingleTask(t);
   }
 
   state.isRunning = false;
@@ -223,6 +170,102 @@ async function startDownload() {
 function stopDownload() {
   abortFlag = true;
   state.statusText = '正在停止…';
+}
+
+// 核心抓取+下载逻辑，处理单个任务
+async function scrapeSingleTask(t) {
+  t.status = 'running';
+  t.message = '抓取商品信息…';
+  try {
+    const goodId = parseXhsUrl(t.url);
+    if (!goodId) {
+      t.status = 'error';
+      t.message = '无法解析商品 ID';
+      return;
+    }
+
+    // 调用 webview 内部页面拿到 cookies（让 webview 访问商品页）
+    const meta = await fetchGoodsFromWebview(webviewRef.value, t.url);
+    if (!meta) {
+      // 回退: 尝试直接 fetch
+      t.message = '直连抓取（无 Cookie）…';
+      const direct = await directFetch(t.url);
+      if (!direct) {
+        t.status = 'error';
+        t.message = '访问被拒绝，小红书需要登录，请在 webview 中登录后重试';
+        return;
+      }
+      if (!direct.title) {
+        t.status = 'error';
+        t.message = '未找到商品标题，请确保链接正确';
+        return;
+      }
+      if (!direct.images || direct.images.length === 0) {
+        t.status = 'error';
+        t.message = '未找到商品图片，请检查链接';
+        return;
+      }
+      Object.assign(t, { title: direct.title, images: direct.images });
+    } else {
+      if (!meta.title) {
+        t.status = 'error';
+        t.message = '未找到商品标题，请确保链接正确';
+        return;
+      }
+      if (!meta.images || meta.images.length === 0) {
+        t.status = 'error';
+        t.message = '未找到商品图片，请检查链接';
+        return;
+      }
+      Object.assign(t, { title: meta.title, images: meta.images });
+    }
+
+    t.message = `共 ${t.images.length} 张图片`;
+
+    // 下载图片
+    for (let i = 0; i < t.images.length; i++) {
+      if (abortFlag) break;
+      const url = t.images[i];
+      try {
+        const buf = await fetchAsBuffer(url);
+        if (!buf) { t.message = `第 ${i + 1} 张下载失败`; continue; }
+        const ext = (url.match(/\.(png|jpg|jpeg|webp)/i)?.[1] || 'jpg').toLowerCase();
+        const safeTitle = (t.title || goodId).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
+        const fileName = `${safeTitle}_${String(i + 1).padStart(2, '0')}.${ext}`;
+        const fullPath = outputDir.value.replace(/[\\/]+$/, '') + '/' + fileName;
+        await window.electronAPI.writeFile(fullPath, buf);
+      } catch (e) {
+        toast.show('写入文件失败: ' + e.message, 'error');
+      }
+      t.percent = Math.round(((i + 1) / t.images.length) * 100);
+    }
+
+    t.status = abortFlag ? 'skipped' : 'done';
+    t.percent = 100;
+    t.message = abortFlag ? '已停止' : `已保存 ${t.images.length} 张`;
+  } catch (e) {
+    t.status = 'error';
+    t.message = e.message;
+  }
+}
+
+// 重试单个失败任务
+async function retryTask(t) {
+  if (state.isRunning) {
+    toast.show('请等待当前任务完成后再重试', 'warn');
+    return;
+  }
+  abortFlag = false;
+  state.isRunning = true;
+  state.statusText = '重试中…';
+  state.dotClass = '';
+  showWebview.value = true;
+  await nextTick();
+  await scrapeSingleTask(t);
+  state.isRunning = false;
+  state.statusText = abortFlag ? '已停止' : '完成';
+  state.dotClass = abortFlag ? 'warn' : '';
+  toast.show(state.statusText, abortFlag ? 'warn' : 'success');
 }
 
 // 尝试从 webview 内部获取商品数据
@@ -241,8 +284,36 @@ async function fetchGoodsFromWebview(wv, url) {
     const result = await wv.executeJavaScript(`
       (function() {
         try {
-          const title = (document.querySelector('h1, .goods-title, [class*="title"]') || {}).innerText || document.title;
-          const imgs = Array.from(document.querySelectorAll('img')).map(i => i.src || i.dataset.src).filter(s => s && s.startsWith('http'));
+          // 多选择器逐步尝试标题
+          let title = '';
+          const titleSelectors = ['h1', '.title', '.goods-title', '.main-title'];
+          for (const sel of titleSelectors) {
+            const el = document.querySelector(sel);
+            if (el && el.innerText && el.innerText.trim()) {
+              title = el.innerText.trim();
+              break;
+            }
+          }
+          if (!title) title = document.title || '';
+
+          // 多选择器逐步尝试图片
+          let imgs = [];
+          const imgSelectors = ['.picture img', 'img', '[data-src]', '[src]'];
+          for (const sel of imgSelectors) {
+            const els = document.querySelectorAll(sel);
+            if (els.length > 0) {
+              const srcs = Array.from(els).map(el => {
+                if (sel === '[data-src]') return el.dataset?.src || el.getAttribute('data-src');
+                if (sel === '[src]') return el.getAttribute('src');
+                return el.src || el.dataset?.src;
+              }).filter(s => s && s.startsWith('http'));
+              if (srcs.length > 0) {
+                imgs = srcs;
+                break;
+              }
+            }
+          }
+
           return JSON.stringify({ title, images: imgs });
         } catch (e) { return 'null'; }
       })();
@@ -289,6 +360,66 @@ function browserHome() {
   nextTick(() => webviewRef.value?.setAttribute('src', browserUrl.value));
 }
 
+// 手动解析：用户点击按钮时重新注入脚本解析当前 webview 页面
+const manualParse = async () => {
+  const wv = webviewRef.value;
+  if (!wv) {
+    toast.show('Webview 未初始化', 'warn');
+    return;
+  }
+  try {
+    const result = await wv.executeJavaScript(`
+      (function() {
+        try {
+          let title = '';
+          const titleSelectors = ['h1', '.title', '.goods-title', '.main-title'];
+          for (const sel of titleSelectors) {
+            const el = document.querySelector(sel);
+            if (el && el.innerText && el.innerText.trim()) {
+              title = el.innerText.trim();
+              break;
+            }
+          }
+          if (!title) title = document.title || '';
+
+          let imgs = [];
+          const imgSelectors = ['.picture img', 'img', '[data-src]', '[src]'];
+          for (const sel of imgSelectors) {
+            const els = document.querySelectorAll(sel);
+            if (els.length > 0) {
+              const srcs = Array.from(els).map(el => {
+                if (sel === '[data-src]') return el.dataset?.src || el.getAttribute('data-src');
+                if (sel === '[src]') return el.getAttribute('src');
+                return el.src || el.dataset?.src;
+              }).filter(s => s && s.startsWith('http'));
+              if (srcs.length > 0) {
+                imgs = srcs;
+                break;
+              }
+            }
+          }
+
+          return JSON.stringify({ title, images: imgs });
+        } catch (e) { return 'null'; }
+      })();
+    `);
+    if (!result || result === 'null') {
+      toast.show('解析失败，页面可能未加载完成', 'warn');
+      return;
+    }
+    const data = JSON.parse(result);
+    if (!data.title && data.images.length === 0) {
+      toast.show('解析失败：未找到商品内容', 'warn');
+    } else if (!data.title) {
+      toast.show('未找到商品标题，但找到 ' + data.images.length + ' 张图片', 'warn');
+    } else {
+      toast.show('解析成功: ' + data.title + ' (' + data.images.length + ' 张图片)', 'success');
+    }
+  } catch (e) {
+    toast.show('解析出错: ' + e.message, 'error');
+  }
+};
+
 onMounted(async () => {
   await nextTick();
   window.lucide?.createIcons();
@@ -307,9 +438,10 @@ onMounted(async () => {
 .task-block { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .task-title { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
 .task-empty {
-  padding: 20px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
+  padding: 32px 20px !important; border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
   color: var(--text-3); font-size: 13px; text-align: center;
   transition: border-color .2s, background .2s;
+  flex: 1;
 }
 .task-empty:hover { border-color: var(--neon-cyan); background: var(--neon-cyan-soft); }
 .task-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 100%; }

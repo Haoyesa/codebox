@@ -547,6 +547,42 @@ ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
     }
   });
 
+// ========== 日志持久化 ==========
+// 日志文件路径：userData 目录下的 fulltool-logs.json
+function getLogFilePath() {
+  return path.join(app.getPath('userData'), 'fulltool-logs.json');
+}
+
+// 读取历史日志
+ipcMain.handle('log:read', async () => {
+  try {
+    const logFile = getLogFilePath();
+    if (fs.existsSync(logFile)) {
+      const raw = fs.readFileSync(logFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      return { success: true, logs: Array.isArray(parsed) ? parsed : [] };
+    }
+    return { success: true, logs: [] };
+  } catch (err) {
+    return { success: false, error: err.message, logs: [] };
+  }
+});
+
+// 写入日志（全量覆盖，渲染进程负责截断到 1000 条）
+ipcMain.handle('log:append', async (event, logs) => {
+  try {
+    if (!Array.isArray(logs)) {
+      return { success: false, error: 'logs must be an array' };
+    }
+    const logFile = getLogFilePath();
+    const trimmed = logs.slice(0, 1000);
+    fs.writeFileSync(logFile, JSON.stringify(trimmed), 'utf8');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // 删除文件（用于清理临时 PDF 中间产物）
 ipcMain.handle('fs:unlink', async (event, filePath) => {
   try {

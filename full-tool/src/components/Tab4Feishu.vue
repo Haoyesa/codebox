@@ -116,6 +116,12 @@
         </span>
       </div>
 
+      <div v-if="!appId || !appSecret" class="empty-state" style="margin-top: 16px; border-top: 1px solid var(--border-2); padding-top: 24px;">
+        <i data-lucide="settings"></i>
+        <p>配置飞书应用信息后开始上传</p>
+        <p class="muted" style="font-size:12px;margin-top:4px;">填写 App ID 和 App Secret 并验证通过后即可使用</p>
+      </div>
+
       <div v-if="state.progress.total > 0" style="margin-top: 12px;">
         <div class="progress-bar"><div class="fill" :style="{ width: state.progress.percent + '%' }"></div></div>
         <div class="row-spread" style="font-size: 12px; color: var(--text-2); margin-top: 6px;">

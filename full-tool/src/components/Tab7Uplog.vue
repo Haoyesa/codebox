@@ -31,6 +31,7 @@
         <button class="tb-btn" id="imgBtn" title="插入图片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
         <button class="tb-btn" id="markBtn" title="荧光标记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-6 6v3h3l6-6"/><path d="M22 5l-3-3-9 9 3 3 9-9z"/></svg></button>
         <button class="tb-btn" id="downloadBtn" title="导出PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <label class="tb-check" title="html2canvas 模式：完整渲染富文本和图片（默认开启）"><input type="checkbox" v-model="useHtml2canvas" /> 富文本</label>
         <div class="tb-spacer"></div>
         <button class="tb-action" data-act="layout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>智能排版</button>
       </div>
@@ -79,10 +80,12 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useToast } from '../composables/useToast.js';
 import { useWorkspaceState } from '../composables/useWorkspaceState.js';
+import html2canvas from 'html2canvas';
 
 const editorContainer = ref(null);
 const toast = useToast();
 const ws = useWorkspaceState('highmd');
+const useHtml2canvas = ref(true);
 
 onMounted(() => {
   const container = editorContainer.value;
@@ -413,7 +416,97 @@ const $=s=>container.querySelector(s);
   $$('.import-card').forEach(c=>c.addEventListener('click',()=>{if(c.dataset.import==='local'){$('#fileInput').click();}}));
   $$('.nav-btn').forEach(b=>b.addEventListener('click',()=>{const t=b.textContent.trim();if(t.indexOf('导出')>-1){exportPNG();setTimeout(()=>toast.show('已生成卡片 PNG'),100);}else{toast.show('功能：'+t);}}));
   $$('.tb-action').forEach(a=>a.addEventListener('click',()=>{if(a.dataset.act==='layout'){const lines=(editorArea.innerText||'').split(/\n+/).filter(Boolean);if(lines.length>1){editorArea.innerHTML=lines.map(l=>l.length>30?'<h2>'+escapeHtml(l)+'</h2><p>':'<p>'+escapeHtml(l)+'</p>').join('');editorArea.dispatchEvent(new Event('input'));toast.show('已应用智能排版');}else{toast.show('正文较短，无需排版');}}}));
-  function exportPNG(){const node=$('#previewFrame');const w=node.offsetWidth,h=node.offsetHeight,scale=2;const canvas=document.createElement('canvas');canvas.width=w*scale;canvas.height=h*scale;const ctx=canvas.getContext('2d');ctx.scale(scale,scale);const stage=node.querySelector('.preview-stage');const bg=getComputedStyle(stage).backgroundColor;ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);ctx.fillStyle=getComputedStyle(stage).color;ctx.textBaseline='top';const padL=22,padR=22,padT=28,innerW=w-padL-padR;const titleEl=stage.querySelector('h1');const bodyEl=stage.querySelector('.body');const badgeEl=stage.querySelector('.badge');const footerEl=stage.querySelector('.footer');const family=getComputedStyle(stage).fontFamily;let y=padT;if(badgeEl){ctx.font='600 10px '+family;const txt=badgeEl.textContent;const tw=ctx.measureText(txt).width+14;ctx.fillStyle='rgba(0,0,0,0.08)';ctx.fillRect(padL,y,tw,16);ctx.fillStyle=getComputedStyle(stage).color;ctx.fillText(txt,padL+7,y+3);y+=28;}if(titleEl){ctx.font='800 21px '+family;wrapText(ctx,titleEl.textContent,innerW).forEach(line=>{ctx.fillText(line,padL,y);y+=28;});y+=8;}if(bodyEl){ctx.font='12.5px '+family;const bodyLines=wrapText(ctx,bodyEl.innerText||'',innerW);const maxLines=Math.floor((h-y-30)/22);bodyLines.slice(0,maxLines).forEach(line=>{ctx.fillText(line,padL,y);y+=22;});}if(footerEl){ctx.font='10px '+family;ctx.fillStyle='rgba(0,0,0,0.4)';const footText=(footerEl.textContent||'').replace(/\s+/g,' ').trim();const fparts=footText.split(/\s+/);ctx.fillText(fparts[0]||'',padL,h-22);if(fparts.length>1){const last=fparts[fparts.length-1];ctx.fillText(last,w-padR-ctx.measureText(last).width,h-22);}}const link=document.createElement('a');link.download='HighMD-'+Date.now()+'.png';link.href=canvas.toDataURL('image/png');link.click();}
+  function exportPNG() {
+    const node = $('#previewFrame');
+    const w = node.offsetWidth, h = node.offsetHeight, scale = 2;
+
+    if (useHtml2canvas.value) {
+      // html2canvas 路径：完整渲染富文本、嵌入图片、背景图片
+      const stage = node.querySelector('.preview-stage');
+      const bgColor = getComputedStyle(document.body).backgroundColor;
+      html2canvas(stage, { backgroundColor: bgColor, scale: 2 }).then(canvas => {
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = 'HighMD-' + Date.now() + '.png';
+          link.href = url;
+          link.click();
+          // 打开图片预览
+          window.open(url, '_blank');
+          toast.show('已导出卡片 PNG');
+          // 延迟释放 blob URL
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }, 'image/png');
+      }).catch(err => {
+        toast.show('导出失败，请重试');
+        console.error('html2canvas error:', err);
+      });
+      return;
+    }
+
+    // 手动绘制路径（原有逻辑）
+    const canvas = document.createElement('canvas');
+    canvas.width = w * scale;
+    canvas.height = h * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    const stage = node.querySelector('.preview-stage');
+    const bg = getComputedStyle(stage).backgroundColor;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = getComputedStyle(stage).color;
+    ctx.textBaseline = 'top';
+    const padL = 22, padR = 22, padT = 28, innerW = w - padL - padR;
+    const titleEl = stage.querySelector('h1');
+    const bodyEl = stage.querySelector('.body');
+    const badgeEl = stage.querySelector('.badge');
+    const footerEl = stage.querySelector('.footer');
+    const family = getComputedStyle(stage).fontFamily;
+    let y = padT;
+    if (badgeEl) {
+      ctx.font = '600 10px ' + family;
+      const txt = badgeEl.textContent;
+      const tw = ctx.measureText(txt).width + 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      ctx.fillRect(padL, y, tw, 16);
+      ctx.fillStyle = getComputedStyle(stage).color;
+      ctx.fillText(txt, padL + 7, y + 3);
+      y += 28;
+    }
+    if (titleEl) {
+      ctx.font = '800 21px ' + family;
+      wrapText(ctx, titleEl.textContent, innerW).forEach(line => {
+        ctx.fillText(line, padL, y);
+        y += 28;
+      });
+      y += 8;
+    }
+    if (bodyEl) {
+      ctx.font = '12.5px ' + family;
+      const bodyLines = wrapText(ctx, bodyEl.innerText || '', innerW);
+      const maxLines = Math.floor((h - y - 30) / 22);
+      bodyLines.slice(0, maxLines).forEach(line => {
+        ctx.fillText(line, padL, y);
+        y += 22;
+      });
+    }
+    if (footerEl) {
+      ctx.font = '10px ' + family;
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      const footText = (footerEl.textContent || '').replace(/\s+/g, ' ').trim();
+      const fparts = footText.split(/\s+/);
+      ctx.fillText(fparts[0] || '', padL, h - 22);
+      if (fparts.length > 1) {
+        const last = fparts[fparts.length - 1];
+        ctx.fillText(last, w - padR - ctx.measureText(last).width, h - 22);
+      }
+    }
+    const link = document.createElement('a');
+    link.download = 'HighMD-' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast.show('已导出卡片 PNG');
+  }
   function wrapText(ctx,text,maxWidth){const out=[];(text||'').split(/\n/).forEach(line=>{if(!line.trim()){out.push('');return;}let cur='';for(const ch of line){if(ctx.measureText(cur+ch).width>maxWidth&&cur){out.push(cur);cur=ch;}else{cur+=ch;}}if(cur)out.push(cur);});return out;}
   let toastTimer;function showToast(msg){clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.show(msg),0);}
   renderPages();prevTitle.textContent=state.pages[0].title;prevBadge.textContent='HighMD · 灵感笔记';
@@ -535,6 +628,8 @@ onBeforeUnmount(() => {
 .highmd-editor-root .tb-btn.active{background:var(--primary);color:#fff}
 .highmd-editor-root .tb-btn svg{width:15px;height:15px}
 .highmd-editor-root .tb-sep{width:1px;height:16px;background:var(--border);margin:0 6px;align-self:center}
+.highmd-editor-root .tb-check{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-2);cursor:pointer;white-space:nowrap;user-select:none;padding:0 4px;height:30px}
+.highmd-editor-root .tb-check input[type=checkbox]{accent-color:var(--primary);cursor:pointer;margin:0}
 .highmd-editor-root .tb-spacer{flex:1}
 .highmd-editor-root .tb-action{font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:4px;padding:0 8px;height:30px;border-radius:6px;transition:all .15s}
 .highmd-editor-root .tb-action:hover{color:var(--text);background:#f3f3f3}

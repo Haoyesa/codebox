@@ -80,6 +80,11 @@
             </div>
           </div>
         </div>
+        <div v-else class="empty-state" style="min-height: 140px;">
+          <i data-lucide="file-plus"></i>
+          <p>选择或拖拽 PDF/DOCX/PPT/XLS 文件开始导出</p>
+          <p style="font-size:12px;margin-top:4px;color:var(--text-3);">支持单个文件、批量选择或整个文件夹</p>
+        </div>
 
         <div class="action-row">
           <span class="export-status" :class="statusClass">
@@ -180,6 +185,24 @@
             <span>{{ state.doneCount }}/{{ state.totalCount }}</span>
           </div>
         </div>
+
+        <!-- 导出进度条（含日志） -->
+        <div v-if="exportProgress.status !== 'idle'" class="export-progress">
+          <div class="progress-header">
+            <span>{{ exportProgress.status === 'running' ? '导出中' : exportProgress.status === 'done' ? '完成' : '出错' }}</span>
+            <span class="mono">{{ exportProgress.current }}/{{ exportProgress.total }}</span>
+            <button class="btn btn-ghost btn-xs" @click="closeProgress" title="关闭">X</button>
+          </div>
+          <div class="progress-bar-exp">
+            <div class="progress-fill-exp" :style="{ width: (exportProgress.total ? exportProgress.current / exportProgress.total * 100 : 0) + '%' }"></div>
+          </div>
+          <div v-if="exportLog.length" class="export-log">
+            <div v-for="(log, i) in exportLog" :key="i" class="export-log-item">
+              <span class="mono">{{ log.time }}</span>
+              <span :class="'log-' + log.level">{{ log.msg }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -256,6 +279,11 @@ const loFound = ref(true);
 const isDragging = ref(false);
 const recentFiles = ref([]);
 let exportAbortController = null;
+
+// Export progress & log
+const exportProgress = ref({ current: 0, total: 0, status: 'idle' });
+const exportLog = ref([]);
+let hideTimer = null;
 
 // Computed
 const canStart = computed(() => {
@@ -466,6 +494,20 @@ function cancelExport() {
   state.statusText = '正在取消...';
 }
 
+function addLog(level, msg) {
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2, '0') + ':' +
+               String(now.getMinutes()).padStart(2, '0') + ':' +
+               String(now.getSeconds()).padStart(2, '0');
+  exportLog.value = [{ time, level, msg }, ...exportLog.value].slice(0, 10);
+}
+
+function closeProgress() {
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  exportProgress.value = { current: 0, total: 0, status: 'idle' };
+  exportLog.value = [];
+}
+
 // .docx 走纯 JS 兜底（mammoth → html2canvas → png/jpg/pdf）
 async function convertDocxViaJS(filePath, format, scale) {
   const r = await window.electronAPI.readFile(filePath);
@@ -558,6 +600,11 @@ async function startExport() {
   const totalFiles = allFiles.length;
   state.totalCount = totalFiles;
 
+  // 初始化进度条
+  exportProgress.value = { current: 0, total: totalFiles, status: 'running' };
+  exportLog.value = [];
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+
   if (totalFiles === 0) {
     toast.show('没有可导出的文件', 'error');
     state.isExporting = false;
@@ -627,15 +674,32 @@ async function startExport() {
       }
       if (state.skippedFiles.indexOf(file.name) < 0 || file.ext === 'docx') {
         successCount++;
+        addLog('info', '已导出：' + file.name);
       }
     } catch (err) {
       console.error('Convert failed for', file.name, err);
       state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
+      addLog('error', '失败：' + file.name + ' - ' + ((err && err.message) || String(err)));
       toast.show('转换失败：' + file.name, 'error');
     }
     state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
     state.progress = Math.round((state.doneCount / totalFiles) * 100);
+    exportProgress.value.current = state.doneCount;
   }
+
+  // 设置最终状态
+  if (state.cancelRequested) {
+    exportProgress.value.status = 'done';
+    addLog('warn', '导出已取消');
+  } else if (state.failedFiles.length > 0) {
+    exportProgress.value.status = 'error';
+    addLog('error', state.failedFiles.length + ' 个文件导出失败');
+  } else {
+    exportProgress.value.status = 'done';
+    addLog('info', '全部导出完成');
+  }
+  // 3 秒后自动隐藏
+  hideTimer = setTimeout(() => { closeProgress(); }, 3000);
 
   // 收尾汇总
   const failed = state.failedFiles.length;
@@ -740,6 +804,11 @@ async function exportFullPreview() {
   const totalFiles = allFiles.length;
   state.totalCount = totalFiles;
 
+  // 初始化进度条
+  exportProgress.value = { current: 0, total: totalFiles, status: 'running' };
+  exportLog.value = [];
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+
   if (totalFiles === 0) {
     toast.show('没有可导出的文件', 'error');
     state.isExporting = false;
@@ -803,6 +872,10 @@ async function exportFullPreview() {
         if (!loAvailable) {
           state.skippedFiles.push(file.name);
           toast.show(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
+          state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
+          state.progress = Math.round((state.doneCount / totalFiles) * 100);
+          exportProgress.value.current = state.doneCount;
+          addLog('warn', '跳过：' + file.name + '（需 LibreOffice）');
           continue;
         }
         const loRes = await window.electronAPI.libreOfficeConvert({
@@ -824,14 +897,31 @@ async function exportFullPreview() {
       const ab = await finalBlob.arrayBuffer();
       await window.electronAPI.writeFile(outPath, new Uint8Array(ab));
       successCount++;
+      addLog('info', '已生成预览：' + file.name);
     } catch (err) {
       console.error('Preview export failed for', file.name, err);
       state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
+      addLog('error', '预览失败：' + file.name + ' - ' + ((err && err.message) || String(err)));
       toast.show('预览生成失败：' + file.name, 'error');
     }
     state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
     state.progress = Math.round((state.doneCount / totalFiles) * 100);
+    exportProgress.value.current = state.doneCount;
   }
+
+  // 设置最终状态
+  if (state.cancelRequested) {
+    exportProgress.value.status = 'done';
+    addLog('warn', '预览导出已取消');
+  } else if (state.failedFiles.length > 0) {
+    exportProgress.value.status = 'error';
+    addLog('error', state.failedFiles.length + ' 个文件预览生成失败');
+  } else {
+    exportProgress.value.status = 'done';
+    addLog('info', '全部预览图生成完成');
+  }
+  // 3 秒后自动隐藏
+  hideTimer = setTimeout(() => { closeProgress(); }, 3000);
 
   // 收尾汇总
   const failed = state.failedFiles.length;
@@ -1159,6 +1249,90 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---- 导出进度条（含日志） ---- */
+.export-progress {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+}
+
+.export-progress .progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: var(--text-2);
+}
+
+.export-progress .progress-header .mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.export-progress .progress-header .btn-xs {
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.export-progress .progress-header .btn-xs:hover {
+  color: var(--text);
+  background: var(--panel-3);
+}
+
+.progress-bar-exp {
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill-exp {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--neon-magenta));
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+
+.export-log {
+  margin-top: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+
+.export-log-item {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  align-items: baseline;
+}
+
+.export-log-item .mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.export-log-item .log-info {
+  color: var(--text-2);
+}
+.export-log-item .log-error {
+  color: var(--danger);
+}
+.export-log-item .log-warn {
+  color: var(--warn);
 }
 
 @media (max-width: 900px) {

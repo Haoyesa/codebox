@@ -33,5 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
 
   // 外部链接
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
+  // 日志持久化
+  logRead: () => ipcRenderer.invoke('log:read'),
+  logWrite: (logs) => ipcRenderer.invoke('log:append', logs)
 });

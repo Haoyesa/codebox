@@ -23,8 +23,8 @@
       <div class="canvas-wrap" ref="canvasWrap" @wheel.prevent="onWheel" @click.self="onCanvasClick">
         <div class="canvas-empty" v-if="!baseImg" @click="pickBase">
           <i data-lucide="image"></i>
-          <p class="drop-hint">点击上传底图（场景图）</p>
-          <p class="drop-sub">支持 PNG / JPG / WebP</p>
+          <p class="drop-hint">上传背景图后开始场景化排版</p>
+          <p class="drop-sub">点击或拖拽上传，支持 PNG / JPG / WebP</p>
         </div>
         <div class="canvas-inner" v-show="baseImg" ref="canvasInner">
           <canvas ref="baseCanvas" class="base-canvas"></canvas>
@@ -32,9 +32,9 @@
           <div
             v-for="corner in ['tl', 'tr', 'bl', 'br']"
             :key="corner"
-            :class="['corner', corner, { hidden: !overlayImg }]"
+            :class="['corner', corner, { hidden: !activeOverlayId }]"
             :data-corner="corner"
-            :style="{ left: corners[corner][0] * 100 + '%', top: corners[corner][1] * 100 + '%' }"
+            :style="activeOverlay ? { left: activeOverlay.corners[corner][0] * 100 + '%', top: activeOverlay.corners[corner][1] * 100 + '%' } : {}"
             @mousedown.stop="startDrag(corner, $event)"
           ></div>
         </div>
@@ -61,47 +61,75 @@
         <!-- Step 2 -->
         <div class="group" v-if="step === 2">
           <h4>叠图设置</h4>
-          <div v-if="overlayImg" class="overlay-info">
-            <span class="tag tag-blue">{{ overlayName }}</span>
+
+          <!-- Overlay list -->
+          <div class="overlay-list" v-if="overlays.length > 0">
+            <div
+              v-for="ov in overlays"
+              :key="ov.id"
+              :class="['overlay-item', { active: activeOverlayId === ov.id }]"
+              @click="selectOverlay(ov.id)"
+            >
+              <img :src="ov.dataUrl" class="overlay-thumb" alt="" />
+              <span class="overlay-name" :title="ov.fileName">{{ ov.fileName }}</span>
+              <button class="overlay-delete" @click.stop="removeOverlay(ov.id)" title="删除叠图">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
           </div>
+
           <button class="btn btn-block" @click="pickOverlay">
             <i data-lucide="layers"></i>
-            {{ overlayImg ? '更换叠图' : '上传叠图' }}
+            添加叠图
           </button>
-          <div class="divider"></div>
-          <div class="setting-row">
-            <span class="setting-label">不透明度</span>
-            <span class="val">{{ opacity }}%</span>
-          </div>
-          <input type="range" v-model="opacity" min="0" max="100" @input="renderOverlay">
-          <div class="divider"></div>
-          <div class="setting-row"><span class="setting-label">混合模式</span></div>
-          <select v-model="blendMode" @change="renderOverlay">
-            <option value="normal">正常 (Normal)</option>
-            <option value="multiply">正片叠底</option>
-            <option value="screen">滤色</option>
-            <option value="overlay">叠加</option>
-            <option value="soft-light">柔光</option>
-            <option value="hard-light">强光</option>
-            <option value="color-dodge">颜色减淡</option>
-            <option value="color-burn">颜色加深</option>
-            <option value="darken">变暗</option>
-            <option value="lighten">变亮</option>
-          </select>
-          <div class="divider"></div>
-          <div class="setting-row">
-            <span class="setting-label">透视变换</span>
-            <label class="toggle">
-              <input type="checkbox" v-model="perspectiveMode" @change="onPerspectiveModeChange">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div v-if="perspectiveMode" class="mode-hint">透视模式：叠图四个角精确对应底图位置</div>
-          <div class="divider"></div>
-          <div class="setting-row"><span class="setting-label">边角微调</span></div>
-          <button class="btn btn-block btn-sm" @click="resetCorners">
-            <i data-lucide="refresh-ccw"></i>重置四个角
-          </button>
+
+          <!-- Active overlay settings -->
+          <template v-if="activeOverlay">
+            <div class="divider"></div>
+            <div class="setting-row">
+              <span class="setting-label">不透明度</span>
+              <span class="val">{{ activeOverlay.opacity }}%</span>
+            </div>
+            <input type="range" v-model="activeOverlay.opacity" min="0" max="100" @input="renderOverlay">
+
+            <div class="divider"></div>
+            <div class="setting-row"><span class="setting-label">混合模式</span></div>
+            <select v-model="activeOverlay.blendMode" @change="renderOverlay">
+              <option value="normal">正常 (Normal)</option>
+              <option value="multiply">正片叠底</option>
+              <option value="screen">滤色</option>
+              <option value="overlay">叠加</option>
+              <option value="soft-light">柔光</option>
+              <option value="hard-light">强光</option>
+              <option value="color-dodge">颜色减淡</option>
+              <option value="color-burn">颜色加深</option>
+              <option value="darken">变暗</option>
+              <option value="lighten">变亮</option>
+            </select>
+
+            <div class="divider"></div>
+            <div class="setting-row">
+              <span class="setting-label">透视变换</span>
+              <label class="toggle">
+                <input type="checkbox" v-model="activeOverlay.perspective" @change="onPerspectiveModeChange">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div v-if="activeOverlay.perspective" class="mode-hint">透视模式：叠图四个角精确对应底图位置</div>
+
+            <div class="divider"></div>
+            <div class="setting-row"><span class="setting-label">边角微调</span></div>
+            <button class="btn btn-block btn-sm" @click="resetCorners">
+              <i data-lucide="refresh-ccw"></i>重置四个角
+            </button>
+
+            <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px" @click="clearOverlay">
+              <i data-lucide="x"></i>移除当前叠图
+            </button>
+          </template>
+
+          <div v-else-if="overlays.length > 0" class="no-overlay-hint">请在左侧列表中点击选择要编辑的叠图</div>
+          <div v-else class="no-overlay-hint">请先添加叠图</div>
         </div>
 
         <!-- Step 3 -->
@@ -126,7 +154,7 @@
           <div class="export-block">
             <button
               class="big"
-              :disabled="!baseImg || !overlayImg || !outputDir || isExporting"
+              :disabled="!baseImg || overlays.length === 0 || !outputDir || isExporting"
               @click="startExport"
             >
               <i data-lucide="download"></i>
@@ -136,7 +164,7 @@
         </div>
 
         <!-- Tips -->
-        <div class="tip-card" style="margin-top:12px" v-if="step === 2 && overlayImg">
+        <div class="tip-card" style="margin-top:12px" v-if="step === 2 && activeOverlayId">
           <div class="tip-icon">i</div>
           <div class="tip-content">拖动四个角的圆点来定位叠图位置</div>
         </div>
@@ -149,7 +177,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { Upload, Layers, Download, RefreshCcw, X, Image, FolderOutput } from 'lucide-vue-next';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
@@ -168,35 +196,23 @@ const baseInput = ref(null);
 const overlayInput = ref(null);
 
 const baseImg = ref(null);
-const overlayImg = ref(null);
 const baseName = ref('');
-const overlayName = ref('');
 const baseWidth = ref(0);
 const baseHeight = ref(0);
 
-// ObjectURL refs for cleanup
+// ObjectURL for base image cleanup
 const baseImgUrl = ref('');
-const overlayImgUrl = ref('');
 
-const opacity = ref(100);
-const blendMode = ref('normal');
+// Multi-overlay support
+const overlays = ref([]);
+const activeOverlayId = ref(null);
+
+const activeOverlay = computed(() => {
+  if (!activeOverlayId.value) return null;
+  return overlays.value.find(o => o.id === activeOverlayId.value) || null;
+});
+
 const exportFormat = ref('PNG');
-const perspectiveMode = ref(false);
-
-const corners = reactive({
-  tl: [0.1, 0.1],
-  tr: [0.9, 0.1],
-  bl: [0.1, 0.9],
-  br: [0.9, 0.9]
-});
-
-// corners in absolute pixels (base image coordinates), used when perspectiveMode=true
-const cornersAbs = reactive({
-  tl: [0, 0],
-  tr: [0, 0],
-  bl: [0, 0],
-  br: [0, 0]
-});
 
 let dragCorner = null;
 let dragStartX = 0;
@@ -216,6 +232,33 @@ const statusMap = {
   3: '第3步：设置输出目录并导出'
 };
 
+// --- Overlay factory ---
+let ovIdCounter = 0;
+function createOverlay(fileName, dataUrl, img) {
+  return {
+    id: 'ov_' + Date.now() + '_' + (ovIdCounter++),
+    dataUrl,
+    fileName,
+    img,
+    opacity: 100,
+    blendMode: 'normal',
+    perspective: false,
+    corners: {
+      tl: [0.1, 0.1],
+      tr: [0.9, 0.1],
+      bl: [0.1, 0.9],
+      br: [0.9, 0.9]
+    },
+    cornersAbs: {
+      tl: [0, 0],
+      tr: [0, 0],
+      bl: [0, 0],
+      br: [0, 0]
+    }
+  };
+}
+
+// --- Rendering ---
 function renderBase() {
   if (!baseCanvas.value || !baseImg.value) return;
   const c = baseCanvas.value;
@@ -226,20 +269,26 @@ function renderBase() {
 }
 
 function renderOverlay() {
-  if (!overlayCanvas.value || !overlayImg.value) return;
+  if (!overlayCanvas.value) return;
   const c = overlayCanvas.value;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, c.width, c.height);
-  ctx.globalAlpha = opacity.value / 100;
-  ctx.globalCompositeOperation = blendMode.value;
-  if (perspectiveMode.value && baseImg.value) {
-    let srcQuad = {
-      tl: [0, 0], tr: [overlayImg.value.naturalWidth, 0],
-      bl: [0, overlayImg.value.naturalHeight], br: [overlayImg.value.naturalWidth, overlayImg.value.naturalHeight]
-    };
-    warpImage(overlayImg.value, overlayCanvas.value, srcQuad, cornersAbs, opacity.value, blendMode.value);
-  } else {
-    ctx.drawImage(overlayImg.value, 0, 0, c.width, c.height);
+
+  for (const ov of overlays.value) {
+    if (!ov.img) continue;
+    ctx.globalAlpha = ov.opacity / 100;
+    ctx.globalCompositeOperation = ov.blendMode;
+    if (ov.perspective && baseImg.value) {
+      const srcQuad = {
+        tl: [0, 0],
+        tr: [ov.img.naturalWidth, 0],
+        bl: [0, ov.img.naturalHeight],
+        br: [ov.img.naturalWidth, ov.img.naturalHeight]
+      };
+      warpImage(ov.img, overlayCanvas.value, srcQuad, ov.cornersAbs, ov.opacity, ov.blendMode);
+    } else {
+      ctx.drawImage(ov.img, 0, 0, c.width, c.height);
+    }
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
@@ -248,7 +297,8 @@ function renderOverlay() {
 function updateOverlayCanvasSize() {
   if (!overlayCanvas.value || !canvasWrap.value) return;
   let w, h;
-  if (perspectiveMode.value && baseImg.value) {
+  const ov = activeOverlay.value;
+  if (ov && ov.perspective && baseImg.value) {
     w = baseImg.value.width;
     h = baseImg.value.height;
   } else {
@@ -267,6 +317,8 @@ function updateZoom() {
 
 function updateCornerPositions() {
   if (!overlayCanvas.value) return;
+  const ov = activeOverlay.value;
+  if (!ov) return;
   const c = overlayCanvas.value;
   const w = c.width;
   const h = c.height;
@@ -274,31 +326,25 @@ function updateCornerPositions() {
     const el = c.parentElement ? c.parentElement.querySelector('[data-corner="' + k + '"]') : null;
     if (!el) return;
     let px, py;
-    if (perspectiveMode.value) {
-      px = cornersAbs[k][0];
-      py = cornersAbs[k][1];
+    if (ov.perspective) {
+      px = ov.cornersAbs[k][0];
+      py = ov.cornersAbs[k][1];
     } else {
-      px = corners[k][0] * w;
-      py = corners[k][1] * h;
+      px = ov.corners[k][0] * w;
+      py = ov.corners[k][1] * h;
     }
     el.style.left = px + 'px';
     el.style.top = py + 'px';
   });
 }
 
-// Compute 3x3 homography matrix from 4 source points to 4 dest points
-// Returns array [a,b,c,d,e,f,g,h] representing the 3x3 matrix:
-// | a d g |
-//   | b e h |
-//   | c f 1 |
-// Maps: dst(u,v,1) = H * src(x,y,1)
+// --- Homography ---
 function computeHomography(src, dst) {
   let sx = src.tl[0], sy = src.tl[1], dx = dst.tl[0], dy = dst.tl[1];
   let tx = src.tr[0], ty = src.tr[1], dx2 = dst.tr[0], dy2 = dst.tr[1];
   let bx = src.bl[0], by = src.bl[1], dx3 = dst.bl[0], dy3 = dst.bl[1];
   let rx = src.br[0], ry = src.br[1], dx4 = dst.br[0], dy4 = dst.br[1];
 
-  // Build 8x8 matrix (simplified construction)
   let m = [
     [-sx,-sy,-1, 0, 0, 0, sx*dx, sy*dx, dx],
     [0, 0, 0,-sx,-sy,-1, sx*dy, sy*dy, dy],
@@ -310,7 +356,6 @@ function computeHomography(src, dst) {
     [0, 0, 0,-rx,-ry,-1, rx*dy4, ry*dy4, dy4]
   ];
 
-  // Gaussian elimination to solve for h[0..7] (h[8]=1)
   let h = [0,0,0,0,0,0,0,0,1];
   for (let i = 0; i < 8; i++) {
     let pivot = i;
@@ -331,10 +376,9 @@ function computeHomography(src, dst) {
       }
     }
   }
-  return h; // [a,b,c,d,e,f,g,h, 1]
+  return h;
 }
 
-// Apply homography warp: draw srcImg onto dstCanvas mapping srcQuad -> dstQuad
 function warpImage(srcImg, dstCanvas, srcQuad, dstQuad, globalAlpha, compositeOp) {
   let ow = srcImg.naturalWidth || srcImg.width;
   let oh = srcImg.naturalHeight || srcImg.height;
@@ -343,14 +387,12 @@ function warpImage(srcImg, dstCanvas, srcQuad, dstQuad, globalAlpha, compositeOp
 
   let H = computeHomography(srcQuad, dstQuad);
 
-  // Render to offscreen canvas first (so putImageData doesn't clobber dst content)
   let warpCanvas = document.createElement('canvas');
   warpCanvas.width = dw; warpCanvas.height = dh;
   let warpCtx = warpCanvas.getContext('2d');
   let warpData = warpCtx.createImageData(dw, dh);
   let data = warpData.data;
 
-  // Source image data
   let srcCanvas = document.createElement('canvas');
   srcCanvas.width = ow; srcCanvas.height = oh;
   let srcCtx = srcCanvas.getContext('2d');
@@ -389,7 +431,6 @@ function warpImage(srcImg, dstCanvas, srcQuad, dstQuad, globalAlpha, compositeOp
 
   warpCtx.putImageData(warpData, 0, 0);
 
-  // Now draw warped result onto dstCanvas using standard compositing
   let ctx = dstCanvas.getContext('2d');
   ctx.globalAlpha = (globalAlpha !== undefined ? globalAlpha : 100) / 100;
   ctx.globalCompositeOperation = (compositeOp || 'source-over');
@@ -398,29 +439,34 @@ function warpImage(srcImg, dstCanvas, srcQuad, dstQuad, globalAlpha, compositeOp
   ctx.globalCompositeOperation = 'source-over';
 }
 
+// --- Corner / drag ---
 function resetCorners() {
-  corners.tl = [0.1, 0.1];
-  corners.tr = [0.9, 0.1];
-  corners.bl = [0.1, 0.9];
-  corners.br = [0.9, 0.9];
+  const ov = activeOverlay.value;
+  if (!ov) return;
+  ov.corners.tl = [0.1, 0.1];
+  ov.corners.tr = [0.9, 0.1];
+  ov.corners.bl = [0.1, 0.9];
+  ov.corners.br = [0.9, 0.9];
   if (baseImg.value) {
-    cornersAbs.tl = [0, 0];
-    cornersAbs.tr = [baseImg.value.width, 0];
-    cornersAbs.bl = [0, baseImg.value.height];
-    cornersAbs.br = [baseImg.value.width, baseImg.value.height];
+    ov.cornersAbs.tl = [0, 0];
+    ov.cornersAbs.tr = [baseImg.value.width, 0];
+    ov.cornersAbs.bl = [0, baseImg.value.height];
+    ov.cornersAbs.br = [baseImg.value.width, baseImg.value.height];
   }
   renderOverlay();
   nextTick(updateCornerPositions);
 }
 
 function startDrag(corner, e) {
+  const ov = activeOverlay.value;
+  if (!ov) return;
   dragCorner = corner;
   dragStartX = e.clientX;
   dragStartY = e.clientY;
-  if (perspectiveMode.value) {
-    dragStartCorners = [cornersAbs[corner][0], cornersAbs[corner][1]];
+  if (ov.perspective) {
+    dragStartCorners = [ov.cornersAbs[corner][0], ov.cornersAbs[corner][1]];
   } else {
-    dragStartCorners = [corners[corner][0], corners[corner][1]];
+    dragStartCorners = [ov.corners[corner][0], ov.corners[corner][1]];
   }
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
@@ -428,23 +474,25 @@ function startDrag(corner, e) {
 
 function onDrag(e) {
   if (!dragCorner) return;
+  const ov = activeOverlay.value;
+  if (!ov) return;
   const dx = e.clientX - dragStartX;
   const dy = e.clientY - dragStartY;
   const wrap = canvasWrap.value;
   if (!wrap) return;
   const scale = zoom.value;
-  if (perspectiveMode.value) {
+  if (ov.perspective) {
     let w = baseImg.value ? baseImg.value.width : wrap.offsetWidth;
     let h = baseImg.value ? baseImg.value.height : wrap.offsetHeight;
     let nx = dragStartCorners[0] + dx / scale;
     let ny = dragStartCorners[1] + dy / scale;
-    cornersAbs[dragCorner][0] = Math.max(0, Math.min(w, nx));
-    cornersAbs[dragCorner][1] = Math.max(0, Math.min(h, ny));
+    ov.cornersAbs[dragCorner][0] = Math.max(0, Math.min(w, nx));
+    ov.cornersAbs[dragCorner][1] = Math.max(0, Math.min(h, ny));
   } else {
     let nx2 = dragStartCorners[0] + dx / (wrap.offsetWidth * scale);
     let ny2 = dragStartCorners[1] + dy / (wrap.offsetHeight * scale);
-    corners[dragCorner][0] = Math.max(0, Math.min(1, nx2));
-    corners[dragCorner][1] = Math.max(0, Math.min(1, ny2));
+    ov.corners[dragCorner][0] = Math.max(0, Math.min(1, nx2));
+    ov.corners[dragCorner][1] = Math.max(0, Math.min(1, ny2));
   }
   renderOverlay();
   nextTick(updateCornerPositions);
@@ -457,18 +505,18 @@ function stopDrag() {
 }
 
 function onPerspectiveModeChange() {
-  if (perspectiveMode.value && baseImg.value) {
-    // Convert ratio corners to absolute pixels
-    cornersAbs.tl = [corners.tl[0] * baseImg.value.width, corners.tl[1] * baseImg.value.height];
-    cornersAbs.tr = [corners.tr[0] * baseImg.value.width, corners.tr[1] * baseImg.value.height];
-    cornersAbs.bl = [corners.bl[0] * baseImg.value.width, corners.bl[1] * baseImg.value.height];
-    cornersAbs.br = [corners.br[0] * baseImg.value.width, corners.br[1] * baseImg.value.height];
-  } else if (!perspectiveMode.value && baseImg.value) {
-    // Convert absolute pixels back to ratio corners
-    corners.tl = [cornersAbs.tl[0] / baseImg.value.width, cornersAbs.tl[1] / baseImg.value.height];
-    corners.tr = [cornersAbs.tr[0] / baseImg.value.width, cornersAbs.tr[1] / baseImg.value.height];
-    corners.bl = [cornersAbs.bl[0] / baseImg.value.width, cornersAbs.bl[1] / baseImg.value.height];
-    corners.br = [cornersAbs.br[0] / baseImg.value.width, cornersAbs.br[1] / baseImg.value.height];
+  const ov = activeOverlay.value;
+  if (!ov) return;
+  if (ov.perspective && baseImg.value) {
+    ov.cornersAbs.tl = [ov.corners.tl[0] * baseImg.value.width, ov.corners.tl[1] * baseImg.value.height];
+    ov.cornersAbs.tr = [ov.corners.tr[0] * baseImg.value.width, ov.corners.tr[1] * baseImg.value.height];
+    ov.cornersAbs.bl = [ov.corners.bl[0] * baseImg.value.width, ov.corners.bl[1] * baseImg.value.height];
+    ov.cornersAbs.br = [ov.corners.br[0] * baseImg.value.width, ov.corners.br[1] * baseImg.value.height];
+  } else if (!ov.perspective && baseImg.value) {
+    ov.corners.tl = [ov.cornersAbs.tl[0] / baseImg.value.width, ov.cornersAbs.tl[1] / baseImg.value.height];
+    ov.corners.tr = [ov.cornersAbs.tr[0] / baseImg.value.width, ov.cornersAbs.tr[1] / baseImg.value.height];
+    ov.corners.bl = [ov.cornersAbs.bl[0] / baseImg.value.width, ov.cornersAbs.bl[1] / baseImg.value.height];
+    ov.corners.br = [ov.cornersAbs.br[0] / baseImg.value.width, ov.cornersAbs.br[1] / baseImg.value.height];
   }
   nextTick(function() {
     updateOverlayCanvasSize();
@@ -492,6 +540,15 @@ function onCanvasClick(e) {
 function pickBase() { baseInput.value && baseInput.value.click(); }
 function pickOverlay() { overlayInput.value && overlayInput.value.click(); }
 
+function selectOverlay(id) {
+  activeOverlayId.value = id;
+  nextTick(function() {
+    updateOverlayCanvasSize();
+    renderOverlay();
+    nextTick(updateCornerPositions);
+  });
+}
+
 function onBaseFile(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
@@ -506,14 +563,6 @@ function onBaseFile(e) {
     baseHeight.value = img.height;
     step.value = 2;
     statusText.value = statusMap[2];
-
-    // Initialize cornersAbs in perspective mode
-    if (perspectiveMode.value) {
-      cornersAbs.tl = [0, 0];
-      cornersAbs.tr = [img.width, 0];
-      cornersAbs.bl = [0, img.height];
-      cornersAbs.br = [img.width, img.height];
-    }
 
     renderBase();
     nextTick(function() {
@@ -530,30 +579,48 @@ function onBaseFile(e) {
 }
 
 function onOverlayFile(e) {
-  const file = e.target.files && e.target.files[0];
-  if (!file) return;
-  overlayName.value = file.name;
-  if (overlayImgUrl.value) { URL.revokeObjectURL(overlayImgUrl.value); overlayImgUrl.value = ''; }
-  const url = URL.createObjectURL(file);
-  overlayImgUrl.value = url;
-  const img = new window.Image();
-  img.onload = function() {
-    overlayImg.value = img;
-    updateOverlayCanvasSize();
-    renderOverlay();
-    nextTick(updateCornerPositions);
-    step.value = 3;
-    statusText.value = statusMap[3];
-    toast.show('叠图已加载', 'success');
-  };
-  img.onerror = function() {
-    toast.show('叠图加载失败', 'error');
-  };
-  img.src = url;
+  const files = e.target.files;
+  if (!files || !files.length) return;
+
+  for (const file of files) {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = function() {
+      const ov = createOverlay(file.name, url, img);
+      overlays.value.push(ov);
+      activeOverlayId.value = ov.id;
+      updateOverlayCanvasSize();
+      renderOverlay();
+      nextTick(updateCornerPositions);
+      if (step.value < 3) {
+        step.value = 3;
+        statusText.value = statusMap[3];
+      }
+      toast.show('叠图已加载', 'success');
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      toast.show('叠图加载失败', 'error');
+    };
+    img.src = url;
+  }
+}
+
+function removeOverlay(id) {
+  const idx = overlays.value.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  const ov = overlays.value[idx];
+  if (ov.dataUrl) URL.revokeObjectURL(ov.dataUrl);
+  overlays.value.splice(idx, 1);
+  if (activeOverlayId.value === id) {
+    activeOverlayId.value = overlays.value.length > 0 ? overlays.value[0].id : null;
+  }
+  updateOverlayCanvasSize();
+  renderOverlay();
+  nextTick(updateCornerPositions);
 }
 
 function clearBase() {
-  // clear base only - keep overlay (and the placement state we built for it)
   baseImg.value = null;
   baseName.value = '';
   baseWidth.value = 0;
@@ -563,8 +630,8 @@ function clearBase() {
 }
 
 function clearOverlay() {
-  overlayImg.value = null;
-  overlayName.value = '';
+  if (!activeOverlayId.value) return;
+  removeOverlay(activeOverlayId.value);
 }
 
 async function pickOutputDir() {
@@ -580,7 +647,7 @@ async function pickOutputDir() {
 }
 
 async function startExport() {
-  if (!baseImg.value || !overlayImg.value || !outputDir.value) return;
+  if (!baseImg.value || overlays.value.length === 0 || !outputDir.value) return;
   isExporting.value = true;
   exportProgress.value = 0;
 
@@ -591,29 +658,34 @@ async function startExport() {
     let ctx = canvas.getContext('2d');
     ctx.drawImage(baseImg.value, 0, 0);
 
-    ctx.globalAlpha = opacity.value / 100;
-    ctx.globalCompositeOperation = blendMode.value;
+    for (const ov of overlays.value) {
+      if (!ov.img) continue;
+      ctx.globalAlpha = ov.opacity / 100;
+      ctx.globalCompositeOperation = ov.blendMode;
 
-    if (perspectiveMode.value) {
-      let srcQuad = {
-        tl: [0, 0], tr: [overlayImg.value.naturalWidth, 0],
-        bl: [0, overlayImg.value.naturalHeight], br: [overlayImg.value.naturalWidth, overlayImg.value.naturalHeight]
-      };
-      warpImage(overlayImg.value, canvas, srcQuad, cornersAbs, opacity.value, blendMode.value);
-    } else {
-      let wrap = canvasWrap.value;
-      if (!wrap) throw new Error('Canvas not found');
-      let xs = [corners.tl[0], corners.tr[0], corners.bl[0], corners.br[0]];
-      let ys = [corners.tl[1], corners.tr[1], corners.bl[1], corners.br[1]];
-      let minX = Math.min.apply(null, xs) * wrap.offsetWidth;
-      let maxX = Math.max.apply(null, xs) * wrap.offsetWidth;
-      let minY = Math.min.apply(null, ys) * wrap.offsetHeight;
-      let maxY = Math.max.apply(null, ys) * wrap.offsetHeight;
-      let sx = minX * (baseImg.value.width / wrap.offsetWidth);
-      let sy = minY * (baseImg.value.height / wrap.offsetHeight);
-      let sw = (maxX - minX) * (baseImg.value.width / wrap.offsetWidth);
-      let sh = (maxY - minY) * (baseImg.value.height / wrap.offsetHeight);
-      ctx.drawImage(overlayImg.value, sx, sy, sw, sh);
+      if (ov.perspective) {
+        let srcQuad = {
+          tl: [0, 0],
+          tr: [ov.img.naturalWidth, 0],
+          bl: [0, ov.img.naturalHeight],
+          br: [ov.img.naturalWidth, ov.img.naturalHeight]
+        };
+        warpImage(ov.img, canvas, srcQuad, ov.cornersAbs, ov.opacity, ov.blendMode);
+      } else {
+        let wrap = canvasWrap.value;
+        if (!wrap) throw new Error('Canvas not found');
+        let xs = [ov.corners.tl[0], ov.corners.tr[0], ov.corners.bl[0], ov.corners.br[0]];
+        let ys = [ov.corners.tl[1], ov.corners.tr[1], ov.corners.bl[1], ov.corners.br[1]];
+        let minX = Math.min.apply(null, xs) * wrap.offsetWidth;
+        let maxX = Math.max.apply(null, xs) * wrap.offsetWidth;
+        let minY = Math.min.apply(null, ys) * wrap.offsetHeight;
+        let maxY = Math.max.apply(null, ys) * wrap.offsetHeight;
+        let sx = minX * (baseImg.value.width / wrap.offsetWidth);
+        let sy = minY * (baseImg.value.height / wrap.offsetHeight);
+        let sw = (maxX - minX) * (baseImg.value.width / wrap.offsetWidth);
+        let sh = (maxY - minY) * (baseImg.value.height / wrap.offsetHeight);
+        ctx.drawImage(ov.img, sx, sy, sw, sh);
+      }
     }
 
     ctx.globalAlpha = 1;
@@ -656,14 +728,13 @@ let ro = null;
 
 onMounted(function() {
   nextTick(function() { window.lucide && window.lucide.createIcons(); });
-  // Load default output dir from settings
   const defaultOut = useSettings().get('outputDir');
   if (defaultOut && !outputDir.value) {
     outputDir.value = defaultOut;
   }
   if (canvasWrap.value) {
     ro = new ResizeObserver(function() {
-      if (overlayImg.value) {
+      if (overlays.value.length > 0) {
         updateOverlayCanvasSize();
         renderOverlay();
         nextTick(updateCornerPositions);
@@ -678,7 +749,10 @@ onUnmounted(function() {
   window.removeEventListener('mousemove', onDrag);
   window.removeEventListener('mouseup', stopDrag);
   if (baseImgUrl.value) { URL.revokeObjectURL(baseImgUrl.value); baseImgUrl.value = ''; }
-  if (overlayImgUrl.value) { URL.revokeObjectURL(overlayImgUrl.value); overlayImgUrl.value = ''; }
+  for (const ov of overlays.value) {
+    if (ov.dataUrl) URL.revokeObjectURL(ov.dataUrl);
+  }
+  overlays.value = [];
 });
 </script>
 
@@ -808,7 +882,79 @@ onUnmounted(function() {
   padding-top: 14px;
 }
 .scn-side .group h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
-.base-info, .overlay-info { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.base-info { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+
+/* Overlay list */
+.overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.overlay-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+}
+.overlay-item:hover {
+  background: var(--panel-2);
+}
+.overlay-item.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.overlay-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.overlay-name {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overlay-delete {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.overlay-delete:hover {
+  color: var(--primary);
+  background: var(--panel-3);
+}
+.overlay-delete i[data-lucide] {
+  width: 14px;
+  height: 14px;
+}
+
+.no-overlay-hint {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+  padding: 12px 0;
+}
 
 .setting-row {
   display: flex;

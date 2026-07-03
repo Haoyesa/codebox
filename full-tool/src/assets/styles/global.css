@@ -89,6 +89,16 @@ i[data-lucide] { display: inline-flex; vertical-align: -3px; }
   letter-spacing: 0;
 }
 
+kbd {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  vertical-align: 1px;
+}
+
 /* App 容器 */
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 

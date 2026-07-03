@@ -84,6 +84,9 @@
 
     <!-- Global confirm dialog -->
     <ConfirmDialog ref="confirmRef" />
+
+    <!-- Keyboard Shortcut Guide -->
+    <ShortcutGuide />
   </div>
 </template>
 
@@ -94,6 +97,7 @@ import { provide } from 'vue';
 import StatusBar from './components/StatusBar.vue';
 import ImagePreview from './components/ImagePreview.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import ShortcutGuide from './components/ShortcutGuide.vue';
 import SkeletonLoader from './components/SkeletonLoader.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
 

@@ -141,7 +141,19 @@
 
         <div class="section-block">
           <h4 class="section-title">操作</h4>
-          <div class="row" style="gap: 8px;">
+          <div class="format-row">
+            <select v-model="outputFormat" class="format-select">
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+              <option value="webp">WebP</option>
+            </select>
+            <div v-if="outputFormat !== 'png'" class="quality-row">
+              <span class="quality-label">质量</span>
+              <input type="range" v-model.number="outputQuality" min="0.1" max="1" step="0.01" />
+              <span class="quality-value mono">{{ Math.round(outputQuality * 100) }}%</span>
+            </div>
+          </div>
+          <div class="row" style="gap: 8px; margin-top: 8px;">
             <button class="btn btn-sm" @click="previewAll">预览</button>
             <button class="btn btn-sm btn-primary" @click="startGenerate" :disabled="!canGenerate || isGenerating">
               <i data-lucide="play"></i>{{ isGenerating ? '生成中 ' + genDone + '/' + genTotal : '开始生成' }}
@@ -219,7 +231,8 @@
                 <span class="el-text" :style="{ fontSize: el.fontSize + 'px', color: el.color, fontWeight: el.weight }">{{ el.text }}</span>
               </template>
               <template v-else-if="el.type === 'image'">
-                <img :src="el.src" class="el-image" />
+                <img v-if="el.src" :src="el.src" class="el-image" />
+                <div v-else class="el-placeholder">图片占位</div>
               </template>
               <template v-else-if="el.type === 'slot'">
                 <div class="slot-inner">
@@ -228,10 +241,7 @@
                 </div>
               </template>
               <template v-else-if="el.type === 'image-slot'">
-                <div class="slot-inner" v-if="!el.src">
-                  <i data-lucide="image" style="width: 24px; height: 24px; opacity: 0.5;"></i>
-                  <span>图片坑位 #{{ el.index }}</span>
-                </div>
+                <div v-if="!el.src" class="el-placeholder">图片占位</div>
                 <img v-else :src="el.src" class="el-image" />
               </template>
 
@@ -247,10 +257,10 @@
 
             <!-- 空态提示 -->
             <div v-if="elements.length === 0 && !canvas.bgImg" class="canvas-hint">
-              <div class="hint-inner">
+              <div class="hint-inner empty-state">
                 <i data-lucide="layout-template"></i>
-                <p class="hint-title">开始设计拼图模板</p>
-                <p class="hint-sub">点击左侧「添加坑位」或「添加图片」</p>
+                <p class="hint-title">添加元素开始设计拼图模板</p>
+                <p class="hint-sub">点击左侧「添加坑位」或「添加图片」创建第一个元素</p>
               </div>
             </div>
           </div>
@@ -389,6 +399,20 @@ const templates = ref([]);
 const lastSavedSnapshot = ref('');
 // Used to anchor the more-horizontal dropdown so click-outside-to-close works.
 const canvasMenuAnchorRef = ref(null);
+
+// 输出格式
+const outputFormat = ref('png');
+const outputQuality = ref(0.92);
+const outputMimeType = computed(() => {
+  if (outputFormat.value === 'jpg') return 'image/jpeg';
+  if (outputFormat.value === 'webp') return 'image/webp';
+  return 'image/png';
+});
+const outputExt = computed(() => {
+  if (outputFormat.value === 'jpg') return 'jpg';
+  if (outputFormat.value === 'webp') return 'webp';
+  return 'png';
+});
 
 // 批量重命名
 const renamePattern = ref('');
@@ -1090,9 +1114,6 @@ function applyTemplateJson(text) {
 // 生成
 async function previewAll() {
   if (!elements.value.length) { toast.show('画布为空', 'warn'); return; }
-  if (imageFolders.value.length === 0 || imageFolders.value[0].files.length === 0) {
-    toast.show('请先添加图片文件夹', 'warn'); return;
-  }
   const frame = document.querySelector('.canvas-frame');
   if (!frame) return;
   // Fill every image-slot with the first folder's first image (r=0). Multi-folder preview
@@ -1125,7 +1146,7 @@ async function previewAll() {
       backgroundColor: canvas.transparent ? null : (canvas.solidBg ? canvas.bgColor : '#ffffff'),
       scale: 1, logging: false, useCORS: true, allowTaint: true
     });
-    const blob = await new Promise(r => out.toBlob(r, 'image/png'));
+    const blob = await new Promise(resolve => out.toBlob(resolve, outputMimeType.value, outputFormat.value !== 'png' ? outputQuality.value : undefined));
     if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) {}
     previewUrl.value = URL.createObjectURL(blob);
     showPreviewModal.value = true;
@@ -1219,10 +1240,10 @@ async function startGenerate() {
         useCORS: true,
         allowTaint: true
       });
-      const blob = await new Promise(r => out.toBlob(r, 'image/png'));
+      const blob = await new Promise(resolve => out.toBlob(resolve, outputMimeType.value, outputFormat.value !== 'png' ? outputQuality.value : undefined));
       const ab = await blob.arrayBuffer();
       const idx = String(r + 1).padStart(3, '0');
-      const name = `拼图_${idx}.png`;
+      const name = `拼图_${idx}.${outputExt.value}`;
       await window.electronAPI.writeFile(safeOutputDir(outputDir.value) + '/' + name, new Uint8Array(ab));
       genDone.value = r + 1;
 
@@ -1426,6 +1447,12 @@ onMounted(async () => {
 }
 .el-text { white-space: pre-wrap; text-align: center; line-height: 1.2; }
 .el-image { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.el-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel-2); color: var(--text-3); font-size: 13px;
+  border-radius: 4px;
+}
 .el-slot, .el-image-slot { background: rgba(6, 214, 244, 0.05); border-style: dashed; border-color: rgba(6, 214, 244, 0.4); }
 .slot-inner {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -1728,4 +1755,63 @@ onMounted(async () => {
 }
 .rename-input::placeholder {
   color: var(--text-4);
+}
+
+/* ============================================================
+   输出格式选择器
+   ============================================================ */
+.format-row {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.format-select {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--panel);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.format-select:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 2px var(--neon-cyan-soft);
+}
+.quality-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.quality-label {
+  font-size: 11px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.quality-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.quality-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  border: none;
+  box-shadow: 0 0 0 2px rgba(6, 214, 244, 0.2);
+  cursor: pointer;
+}
+.quality-value {
+  font-size: 11px;
+  color: var(--text-2);
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
 }</style>

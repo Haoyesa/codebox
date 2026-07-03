@@ -114,12 +114,28 @@
           <span v-if="platform" class="tag tag-cyan" style="font-size:11px;margin-left:6px;">{{ platform }}</span>
         </div>
         <div class="row" style="gap: 8px; margin-top: 10px;">
-          <button class="btn btn-sm" @click="checkUpdate">
-            <i data-lucide="refresh-cw"></i>检查更新
+          <button
+            class="btn btn-sm"
+            @click="checkUpdate"
+            :disabled="updateStatus === 'checking'"
+          >
+            <i data-lucide="refresh-cw" :class="{ 'spin': updateStatus === 'checking' }"></i>
+            {{ updateStatus === 'checking' ? '检查中...' : '检查更新' }}
+          </button>
+          <span v-if="updateStatus === 'up-to-date'" class="tag tag-green" style="font-size:11px;">已是最新</span>
+          <span v-else-if="updateStatus === 'available'" class="tag tag-green" style="font-size:11px;">{{ updateInfo.version }}</span>
+          <span v-else-if="updateStatus === 'error'" class="tag tag-red" style="font-size:11px;" :title="updateError">{{ updateError }}</span>
+          <button v-if="updateStatus === 'available'" class="btn btn-sm btn-primary" @click="openDownloadUrl">
+            <i data-lucide="download"></i>下载
           </button>
           <button class="btn btn-sm" @click="openTutorial">
             <i data-lucide="book-open"></i>使用教程
           </button>
+        </div>
+        <!-- 更新内容 -->
+        <div v-if="updateStatus === 'available' && updateInfo.body" class="update-info" style="margin-top: 10px;">
+          <p class="update-info-title">更新内容：</p>
+          <p class="update-info-body">{{ truncateBody(updateInfo.body) }}</p>
         </div>
         <button class="btn btn-secondary btn-block" style="margin-top: 10px;" @click="openCommunity">
           <i data-lucide="users"></i>模板库及交流群
@@ -370,10 +386,102 @@ function loadAuth() {
 /* ---------- 应用信息 ---------- */
 const appVersion = ref('1.5.1');
 
-function checkUpdate() {
-  pushLog('info', '检查更新：当前版本 v' + appVersion.value);
-  toast.show('当前已是最新版本', 'success');
+/* ---------- 版本更新检查 ---------- */
+const GITHUB_RELEASE_API = 'https://api.github.com/repos/Haoyesa/codebox/releases/latest';
+const updateStatus = ref('idle'); // 'idle' | 'checking' | 'up-to-date' | 'available' | 'error'
+const updateInfo = ref({ version: '', url: '', body: '' });
+const updateError = ref('');
+
+/**
+ * 比较两个版本号，返回 true 表示 latest 比 current 新
+ * 支持 'v1.5.2' 和 '1.5.1' 格式
+ */
+function isNewerVersion(current, latest) {
+  const clean = (v) => v.replace(/^v/, '').split('.').map(Number);
+  const cur = clean(current);
+  const lat = clean(latest);
+  for (let i = 0; i < Math.max(cur.length, lat.length); i++) {
+    const a = cur[i] || 0;
+    const b = lat[i] || 0;
+    if (b > a) return true;
+    if (a > b) return false;
+  }
+  return false;
 }
+
+function truncateBody(body, maxLen = 200) {
+  if (!body) return '';
+  return body.length > maxLen ? body.slice(0, maxLen) + '...' : body;
+}
+
+async function checkUpdate() {
+  if (updateStatus.value === 'checking') return;
+  updateStatus.value = 'checking';
+  updateError.value = '';
+  pushLog('info', '检查更新：当前版本 v' + appVersion.value);
+
+  try {
+    const res = await fetch(GITHUB_RELEASE_API, {
+      headers: { Accept: 'application/vnd.github.v3+json' }
+    });
+
+    if (res.status === 403) {
+      const rateLimitRemaining = res.headers.get('x-ratelimit-remaining');
+      if (rateLimitRemaining === '0') {
+        updateError.value = 'API 限流，请稍后重试';
+        updateStatus.value = 'error';
+        pushLog('warn', 'GitHub API 限流，无法检查更新');
+        toast.show('API 限流，请稍后重试', 'warn');
+        return;
+      }
+    }
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const release = await res.json();
+    const latestTag = release.tag_name || '';
+    const downloadUrl = release.html_url || '';
+    const releaseBody = release.body || '';
+
+    if (!latestTag) {
+      throw new Error('未获取到版本信息');
+    }
+
+    updateInfo.value = {
+      version: latestTag,
+      url: downloadUrl,
+      body: releaseBody
+    };
+
+    if (isNewerVersion(appVersion.value, latestTag)) {
+      updateStatus.value = 'available';
+      pushLog('info', `发现新版本：${latestTag}`);
+      toast.show(`发现新版本 ${latestTag}`, 'success');
+    } else {
+      updateStatus.value = 'up-to-date';
+      pushLog('info', '当前已是最新版本');
+      toast.show('当前已是最新版本', 'success');
+    }
+  } catch (err) {
+    updateError.value = err.message || '检查更新失败';
+    updateStatus.value = 'error';
+    pushLog('error', '检查更新失败: ' + (err.message || '未知错误'));
+    toast.show('检查更新失败: ' + (err.message || '未知错误'), 'error');
+  }
+}
+
+function openDownloadUrl() {
+  const url = updateInfo.value.url;
+  if (!url) return;
+  if (electronAPI?.openExternal) {
+    electronAPI.openExternal(url);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
 function openTutorial() {
   window.open('https://github.com/Haoyesa/codebox', '_blank');
 }
@@ -474,13 +582,32 @@ function levelLabel(l) {
   return { info: 'INFO', warn: 'WARN', error: 'ERR ' }[l] || l.toUpperCase();
 }
 
+const MAX_LOGS = 1000;
+let _writeTimer = null;
+
+async function persistLogs() {
+  if (!electronAPI?.logWrite) return;
+  try {
+    const trimmed = logs.value.slice(0, MAX_LOGS);
+    await electronAPI.logWrite(trimmed);
+  } catch (_) {
+    // 日志持久化失败静默忽略，不影响 UI
+  }
+}
+
+function schedulePersistLogs() {
+  if (_writeTimer) clearTimeout(_writeTimer);
+  _writeTimer = setTimeout(persistLogs, 200);
+}
+
 function pushLog(level, msg) {
   const t = new Date();
   logs.value.unshift({
     time: t.toTimeString().slice(0, 8),
     level, msg
   });
-  if (logs.value.length > 500) logs.value.length = 500;
+  if (logs.value.length > MAX_LOGS) logs.value.length = MAX_LOGS;
+  schedulePersistLogs();
 }
 
 // Auto-scroll
@@ -516,6 +643,10 @@ function exportLogs() {
 async function clearLogs() {
   if (logs.value.length && !(await window.appConfirm({ message: `确定清空 ${logs.value.length} 条日志？` }))) return;
   logs.value = [];
+  // 同步清空文件
+  if (electronAPI?.logWrite) {
+    electronAPI.logWrite([]).catch(() => {});
+  }
   toast.show('日志已清空', 'success');
 }
 
@@ -545,6 +676,18 @@ onMounted(async () => {
   loPath.value = settings.get('loDir') || '';
   outputDir.value = settings.get('outputDir') || '';
 
+  // Load persisted logs from file
+  if (electronAPI?.logRead) {
+    try {
+      const res = await electronAPI.logRead();
+      if (res.success && res.logs.length) {
+        logs.value = res.logs;
+      }
+    } catch (_) {
+      // 文件读取失败时静默忽略，使用空日志
+    }
+  }
+
   // Auto-detect LO if not set
   if (!loPath.value) {
     detectLO();
@@ -556,9 +699,22 @@ onMounted(async () => {
 
   installLogInterceptor();
   pushLog('info', 'Full 启动完成 v' + appVersion.value);
+
+  // 延迟 2 秒自动检查更新
+  setTimeout(() => {
+    checkUpdate();
+  }, 2000);
 });
 
-onBeforeUnmount(() => uninstallLogInterceptor());
+onBeforeUnmount(() => {
+  uninstallLogInterceptor();
+  // 组件卸载前刷新待写入的日志
+  if (_writeTimer) {
+    clearTimeout(_writeTimer);
+    _writeTimer = null;
+  }
+  persistLogs();
+});
 </script>
 
 <style scoped>
@@ -636,6 +792,37 @@ onBeforeUnmount(() => uninstallLogInterceptor());
 
 .contact-card { margin-top: 14px; }
 .contact-card i[data-lucide] { color: var(--primary); width: 16px; height: 16px; }
+
+/* 更新信息 */
+.update-info {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.update-info-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin: 0 0 6px;
+}
+.update-info-body {
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 旋转动画 */
+.spin {
+  animation: spin-anim 1s linear infinite;
+}
+@keyframes spin-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 @media (max-width: 900px) {
   .settings-row1 { grid-template-columns: 1fr; }
