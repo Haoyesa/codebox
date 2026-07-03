@@ -22,7 +22,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -30,6 +30,7 @@ export default defineConfig({
           html2canvas: ['html2canvas'],
           vendor: ['vue', 'vue-router'],
           mammoth: ['mammoth'],
+          jszip: ['jszip'],
           jspdf: ['jspdf']
         }
       }

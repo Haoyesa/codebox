@@ -197,7 +197,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
-import { Download, FileText, FolderOpen, FolderOutput, AlertTriangle } from 'lucide-vue-next';
+
 import * as mammoth from 'mammoth';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -820,10 +820,16 @@ onMounted(async () => {
   margin-bottom: 12px; font-size: 12px; color: var(--text-2);
 }
 .meta-row .meta {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; background: #f3f4f6; border-radius: 6px;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel-3) 100%);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  transition: border-color .15s, box-shadow .15s;
 }
-.meta-row .meta b { color: var(--text); font-weight: 500; }
+.meta-row .meta:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.meta-row .meta b { color: var(--text); font-weight: 600; }
 .meta-dir { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .action-row {
@@ -851,17 +857,31 @@ onMounted(async () => {
 .file-list-header {
   display: flex; justify-content: space-between; align-items: center;
   font-size: 12px; color: var(--text-2); margin-bottom: 8px;
+  padding: 0 4px;
 }
-.file-list-items { max-height: 140px; overflow-y: auto; }
+.file-list-items { max-height: 160px; overflow-y: auto; padding: 2px; }
 .file-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 4px 0; font-size: 12px;
-  border-bottom: 1px solid var(--border-2);
+  padding: 5px 8px; font-size: 12px;
+  border-radius: 6px;
+  transition: background .15s;
+  cursor: default;
 }
-.file-item:last-child { border-bottom: none; }
+.file-item:hover { background: var(--panel-2); }
+.file-item i[data-lucide] { flex-shrink: 0; }
 .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.file-size { color: var(--text-3); }
-.file-more { font-size: 12px; color: var(--text-3); padding: 4px 0; }
+.file-size {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.file-more {
+  font-size: 11px; color: var(--text-3);
+  padding: 6px 8px;
+  text-align: center;
+  font-family: var(--font-mono);
+}
 
 /* Settings */
 .setting-row {
@@ -876,24 +896,24 @@ onMounted(async () => {
 .format-chip {
   padding: 4px 12px; border-radius: 6px;
   border: 1px solid var(--border);
-  background: #fff; font-size: 12px; font-weight: 500;
+  background: var(--panel); font-size: 12px; font-weight: 500;
   cursor: pointer; transition: all .15s;
 }
 .format-chip:hover { border-color: var(--primary-2); }
 .format-chip.active {
   background: var(--primary-soft); color: var(--primary);
-  border-color: #fecaca;
+  border-color: var(--primary-soft);
 }
 
 /* Export block */
 .export-block { margin-top: 14px; }
 .export-block .big {
   width: 100%; padding: 14px 18px;
-  background: linear-gradient(180deg, var(--primary) 0%, #f56565 100%);
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-2) 100%);
   color: #fff; border: 0; border-radius: 8px;
   font-size: 15px; font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(239,68,68,.3);
+  box-shadow: 0 4px 14px var(--primary-glow);
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: filter .15s, transform .1s;
 }
@@ -904,7 +924,7 @@ onMounted(async () => {
   width: 100%;
   margin-top: 8px;
   padding: 10px 16px;
-  background: #fff;
+  background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -950,14 +970,14 @@ onMounted(async () => {
   width: 794px;
   pointer-events: none;
   z-index: -1;
-  background: #fff;
+  background: var(--panel);
 }
 .render-host .lo-doc {
   padding: 48px;
   font-size: 14px;
   line-height: 1.6;
   color: #111;
-  background: #fff;
+  background: var(--panel);
   font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
   word-wrap: break-word;
 }

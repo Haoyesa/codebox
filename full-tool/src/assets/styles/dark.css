@@ -1,0 +1,123 @@
+/* ============================================================
+   商品图工坊 · 暗色模式主题
+   ============================================================ */
+
+[data-theme="dark"] {
+  /* 基础色 */
+  --bg: #0b0f17;
+  --bg-2: #111827;
+  --panel: #151c28;
+  --panel-2: #1f2937;
+  --panel-3: #243145;
+
+  --border: #273242;
+  --border-2: #1e293b;
+  --border-strong: #334155;
+
+  --text: #f1f5f9;
+  --text-2: #94a3b8;
+  --text-3: #64748b;
+  --text-4: #475569;
+
+  /* 品牌色保持不变，微调亮度 */
+  --primary: #f87171;
+  --primary-2: #fb7185;
+  --primary-deep: #ef4444;
+  --primary-soft: rgba(248, 113, 113, 0.12);
+  --primary-glow: rgba(248, 113, 113, 0.25);
+
+  /* 赛博辅色 */
+  --neon-cyan: #22d3ee;
+  --neon-cyan-soft: rgba(34, 211, 238, 0.10);
+  --neon-magenta: #f472b6;
+  --neon-magenta-soft: rgba(244, 114, 182, 0.08);
+  --neon-violet: #a78bfa;
+
+  /* 状态色 */
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.10);
+  --warn-deep: #d97706;
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.10);
+  --ok-deep: #10b981;
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.10);
+
+  /* 形状与阴影 — 暗色下阴影更弱 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.25), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(34, 211, 238, 0.05), transparent 40%),
+    radial-gradient(circle at 88% 100%, rgba(244, 114, 182, 0.04), transparent 42%),
+    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* 顶栏暗色适配 */
+[data-theme="dark"] .topbar {
+  background: linear-gradient(180deg, rgba(11, 15, 23, 0.95) 0%, rgba(11, 15, 23, 0.85) 100%);
+  border-bottom-color: var(--border-2);
+}
+
+/* 状态栏暗色适配 */
+[data-theme="dark"] .status-bar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border-top-color: var(--border);
+  color: var(--text-3);
+}
+
+/* 卡片暗色下 hover 发光更柔和 */
+[data-theme="dark"] .card:hover {
+  box-shadow: 0 0 0 1px var(--border-strong), var(--shadow-lg);
+}
+
+/* Tab 暗色 */
+[data-theme="dark"] .tabs {
+  background: var(--panel);
+  border-color: var(--border);
+}
+[data-theme="dark"] .tab:hover {
+  background: var(--panel-2);
+}
+[data-theme="dark"] .tab.active {
+  background: var(--primary-soft);
+}
+
+/* Toast 暗色 */
+[data-theme="dark"] .toast {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* 输入控件暗色 */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* 按钮暗色微调 */
+[data-theme="dark"] .btn-ghost:hover {
+  background: var(--panel-2);
+}
+
+/* 滚动条暗色 */
+[data-theme="dark"] ::-webkit-scrollbar { width: 6px; height: 6px; }
+[data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+/* ImagePreview 暗色下已用 scoped 样式，toolbar 背景较深，无需额外适配 */

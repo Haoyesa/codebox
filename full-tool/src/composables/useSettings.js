@@ -55,3 +55,5 @@ export function useSettings() {
     load
   };
 }
+
+export { defaultSettings };

@@ -130,12 +130,10 @@ ipcMain.handle('dialog:openDirectory', async () => {
 
 // 选择输出目录
 ipcMain.handle('dialog:selectOutputDir', async () => {
-  console.log('[IPC] dialog:selectOutputDir called, mainWindow exists:', !!mainWindow);
   try {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory', 'createDirectory']
     });
-    console.log('[IPC] dialog result:', JSON.stringify(result));
     return result;
   } catch (err) {
     console.error('[IPC] dialog:selectOutputDir error:', err.message);
@@ -380,6 +378,7 @@ ipcMain.handle('fs:readFile', async (event, filePath) => {
 
 ipcMain.handle('fs:readDir', async (event, dirPath, options) => {
   try {
+    validatePath(dirPath, 'readDir');
     const recursive = !!(options && options.recursive);
     if (!recursive) {
       const files = fs.readdirSync(dirPath);
@@ -499,6 +498,7 @@ ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
   // Upload one file to bitable_image drive. Returns file_token.
   ipcMain.handle('feishu:uploadAttachment', async (event, { appId, appSecret, appToken, filePath, fileName } = {}) => {
     try {
+      validatePath(filePath, 'feishu:uploadAttachment');
       const token = await getFeishuToken(appId, appSecret);
       const buf = fs.readFileSync(filePath);
       const safeName = String(fileName || path.basename(filePath)).replace(/"/g, '');
@@ -563,6 +563,7 @@ ipcMain.handle('fs:unlink', async (event, filePath) => {
 ipcMain.handle('fs:renameFile', async (event, oldPath, newName) => {
   try {
     validatePath(oldPath, 'renameFile');
+    if (/\.\./.test(newName) || /[\\\/]/.test(newName)) throw new Error('Invalid newName');
     const dir = path.dirname(oldPath);
     const newPath = path.join(dir, newName);
     fs.renameSync(oldPath, newPath);
@@ -581,6 +582,7 @@ ipcMain.handle('dialog:saveFile', async (event, options) => {
 // 下载文件
 ipcMain.handle('download:file', async (event, { url, savePath }) => {
   return new Promise((resolve, reject) => {
+    validatePath(savePath, 'download:file');
     const https = require('https');
     const http = require('http');
     const file = fs.createWriteStream(savePath);
@@ -602,4 +604,10 @@ ipcMain.handle('download:file', async (event, { url, savePath }) => {
       reject(err);
     });
   });
+});
+
+ipcMain.handle('shell:openExternal', async (event, url) => {
+  const { shell } = require('electron');
+  await shell.openExternal(url);
+  return { success: true };
 });

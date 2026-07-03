@@ -86,7 +86,9 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { useToast } from '../composables/useToast.js';
 
+const toast = useToast();
 const urlText = ref('');
 const outputDir = ref('');
 const tasks = ref([]); // {id, url, title, status, percent, message}
@@ -198,7 +200,7 @@ async function startDownload() {
           const fullPath = outputDir.value.replace(/[\\/]+$/, '') + '/' + fileName;
           await window.electronAPI.writeFile(fullPath, buf);
         } catch (e) {
-          // continue
+          toast.show('写入文件失败: ' + e.message, 'error');
         }
         t.percent = Math.round(((i + 1) / t.images.length) * 100);
       }
@@ -305,20 +307,27 @@ onMounted(async () => {
 .task-block { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .task-title { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
 .task-empty {
-  padding: 14px; border: 1px dashed var(--border-strong); border-radius: 8px;
+  padding: 20px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
   color: var(--text-3); font-size: 13px; text-align: center;
+  transition: border-color .2s, background .2s;
 }
+.task-empty:hover { border-color: var(--neon-cyan); background: var(--neon-cyan-soft); }
 .task-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 100%; }
 .task-item {
   padding: 8px 10px; background: var(--panel-2);
   border: 1px solid var(--border); border-radius: 8px;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
 }
+.task-item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); transform: translateX(2px); }
 .task-row1 { display: flex; align-items: center; gap: 8px; }
 .task-status {
   font-family: var(--font-mono);
-  font-size: 10px; padding: 1px 6px; border-radius: 3px;
+  font-size: 10px; padding: 2px 7px; border-radius: 6px;
   background: var(--panel-3); color: var(--text-2);
+  font-weight: 500;
+  transition: transform .15s;
 }
+.task-item:hover .task-status { transform: scale(1.05); }
 .task-status.st-running { background: var(--neon-cyan-soft); color: #0369a1; }
 .task-status.st-done { background: var(--ok-soft); color: var(--ok-deep); }
 .task-status.st-error { background: var(--primary-soft); color: var(--primary-deep); }
@@ -330,14 +339,21 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel-2);
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel-3) 100%);
 }
-.browser-status { font-size: 12px; color: var(--text-2); }
-.browser-frame { flex: 1; position: relative; background: var(--panel-2); }
+.browser-status {
+  font-size: 12px; color: var(--text-2);
+  font-family: var(--font-mono);
+}
+.browser-frame {
+  flex: 1; position: relative; background: var(--panel-2);
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
 .webview-el { width: 100%; height: 100%; min-height: 480px; border: 0; }
 .browser-placeholder {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: var(--text-3); gap: 8px;
+  color: var(--text-3); gap: 10px;
 }
 </style>

@@ -2,19 +2,26 @@
   <div class="app">
     <!-- Top navigation bar -->
     <header class="topbar">
-      <nav class="tabs" role="tablist">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          :class="['tab', { active: currentTab === tab.id }]"
-          :aria-selected="currentTab === tab.id"
-          role="tab"
-          @click="switchTab(tab.id)"
-        >
-          <i :data-lucide="tab.icon"></i>
-          {{ tab.label }}
-        </button>
-      </nav>
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark">F</div>
+          <span class="brand-name">Full Tool</span>
+        </div>
+        <nav class="tabs" role="tablist">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            :class="['tab', { active: currentTab === tab.id }]"
+            :aria-selected="currentTab === tab.id"
+            role="tab"
+            @click="switchTab(tab.id)"
+          >
+            <i :data-lucide="tab.icon"></i>
+            <span>{{ tab.label }}</span>
+          </button>
+        </nav>
+        <div class="topbar-spacer"></div>
+      </div>
     </header>
 
     <!-- Page content -->
@@ -26,6 +33,12 @@
 
     <!-- Toast notification -->
     <div :class="['toast', toast.type, { show: toast.message }]" ref="toastRef">{{ toast.message }}</div>
+
+    <!-- Global image preview -->
+    <ImagePreview ref="imagePreviewRef" />
+
+    <!-- Bottom status bar -->
+    <StatusBar :current-tab="currentTab" />
   </div>
 </template>
 
@@ -33,6 +46,8 @@
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
 import { ToastSymbol, createToast } from './composables/useToast.js';
 import { provide } from 'vue';
+import StatusBar from './components/StatusBar.vue';
+import ImagePreview from './components/ImagePreview.vue';
 
 // Tab 定义
 const tabs = [
@@ -77,9 +92,12 @@ onMounted(() => {
 
   window.addEventListener('error', (e) => {
     console.error('[Global Error]', e.message, e.filename, e.lineno);
+    window.showToast?.('运行时错误: ' + e.message, 'error');
   });
   window.addEventListener('unhandledrejection', (e) => {
     console.error('[Unhandled Promise]', e.reason);
+    window.showToast?.('未处理的异步错误', 'error');
+    e.preventDefault();
   });
 });
 </script>

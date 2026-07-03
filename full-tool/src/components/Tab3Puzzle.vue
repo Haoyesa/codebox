@@ -23,9 +23,9 @@
             </label>
             <input type="color" v-model="canvas.bgColor" :disabled="canvas.transparent" class="color-pick" />
           </div>
-          <div class="row" style="margin-top: 10px; gap: 12px; font-size: 12px;">
-            <span class="muted">宽</span><input type="number" v-model.number="canvas.width" min="50" max="4096" class="num" />
-            <span class="muted">高</span><input type="number" v-model.number="canvas.height" min="50" max="4096" class="num" />
+          <div class="row" style="margin-top: 10px; gap: 6px; font-size: 12px;">
+            <span class="muted" style="flex-shrink: 0;">宽</span><input type="number" v-model.number="canvas.width" min="50" max="4096" class="num" />
+            <span class="muted" style="flex-shrink: 0;">高</span><input type="number" v-model.number="canvas.height" min="50" max="4096" class="num" />
           </div>
         </div>
 
@@ -50,9 +50,45 @@
           </div>
         </div>
 
+        <!-- 批量操作 -->
+        <div v-if="isMultiSelect" class="section-block batch-panel">
+          <h4 class="section-title">
+            <i data-lucide="layers"></i>批量操作
+            <span class="tag tag-cyan" style="font-size:11px;margin-left:6px;">{{ selectedIds.length }} 个</span>
+          </h4>
+          <div class="batch-grid">
+            <button class="btn btn-xs" @click="alignSelected('left')" title="左对齐">
+              <i data-lucide="align-left"></i>
+            </button>
+            <button class="btn btn-xs" @click="alignSelected('hcenter')" title="水平居中">
+              <i data-lucide="align-center"></i>
+            </button>
+            <button class="btn btn-xs" @click="alignSelected('right')" title="右对齐">
+              <i data-lucide="align-right"></i>
+            </button>
+            <button class="btn btn-xs" @click="alignSelected('top')" title="上对齐">
+              <i data-lucide="align-start-vertical"></i>
+            </button>
+            <button class="btn btn-xs" @click="alignSelected('vcenter')" title="垂直居中">
+              <i data-lucide="align-center-vertical"></i>
+            </button>
+            <button class="btn btn-xs" @click="alignSelected('bottom')" title="下对齐">
+              <i data-lucide="align-end-vertical"></i>
+            </button>
+          </div>
+          <div class="row" style="gap: 6px; margin-top: 10px;">
+            <button class="btn btn-xs" @click="resizeSelected('max')">统一最大</button>
+            <button class="btn btn-xs" @click="resizeSelected('min')">统一最小</button>
+            <button class="btn btn-xs" @click="resizeSelected('avg')">统一平均</button>
+          </div>
+          <button class="btn btn-xs btn-ghost btn-block" style="margin-top: 10px; color: var(--primary);" @click="removeSelected">
+            <i data-lucide="trash-2"></i>删除选中
+          </button>
+        </div>
+
         <div class="section-block">
           <h4 class="section-title">文件操作</h4>
-          <div class="row" style="gap: 8px;">
+          <div class="row" style="gap: 6px; flex-wrap: wrap;">
             <button class="btn btn-sm" @click="addImageFolder">
               <i data-lucide="folder-plus"></i>添加图片文件夹
             </button>
@@ -171,10 +207,10 @@
               v-for="el in elements"
               :key="el.id"
               class="el"
-              :class="['el-' + el.type, { selected: selectedId === el.id }]"
+              :class="['el-' + el.type, { selected: selectedId === el.id || selectedIds.includes(el.id) }]"
               :style="elStyle(el)"
               @mousedown.stop="startDrag($event, el)"
-              @click.stop="select(el.id)"
+              @click.stop="select(el.id, $event)"
             >
               <template v-if="el.type === 'text'">
                 <span class="el-text" :style="{ fontSize: el.fontSize + 'px', color: el.color, fontWeight: el.weight }">{{ el.text }}</span>
@@ -208,7 +244,11 @@
 
             <!-- 空态提示 -->
             <div v-if="elements.length === 0 && !canvas.bgImg" class="canvas-hint">
-              点击左侧「添加坑位」或「添加图片」开始设计模板
+              <div class="hint-inner">
+                <i data-lucide="layout-template"></i>
+                <p class="hint-title">开始设计拼图模板</p>
+                <p class="hint-sub">点击左侧「添加坑位」或「添加图片」</p>
+              </div>
             </div>
           </div>
 
@@ -274,6 +314,9 @@ import html2canvas from 'html2canvas';
 import { getExt, getMimeFromPath, safeOutputDir } from '../utils/file.js';
 import { yieldToMain } from '../utils/format.js';
 import { useSettings } from '../composables/useSettings.js';
+import { useToast } from '../composables/useToast.js';
+
+const toast = useToast();
 
 // 画布
 const canvas = reactive({
@@ -287,6 +330,8 @@ const canvas = reactive({
 const zoom = ref(0.4);
 const elements = ref([]); // {id, type, x, y, w, h, text/src/index/color/...}
 const selectedId = ref(null);
+const selectedIds = ref([]); // 多选数组
+const isMultiSelect = computed(() => selectedIds.value.length > 0);
 let nextId = 1;
 
 const stageRef = ref(null);
@@ -411,6 +456,7 @@ function zoomBy(d) {
 
 function onStageClick() {
   selectedId.value = null;
+  selectedIds.value = [];
 }
 
 function newId() { return 'el-' + (nextId++); }
@@ -488,10 +534,113 @@ function clearImages() {
   elements.value = elements.value.filter(e => e.type !== 'image');
 }
 
-function select(id) { selectedId.value = id; }
+function select(id, event) {
+  if (event && (event.ctrlKey || event.metaKey)) {
+    // Ctrl/Cmd + 点击：切换多选
+    const arr = selectedIds.value.slice();
+    const idx = arr.indexOf(id);
+    if (idx >= 0) arr.splice(idx, 1);
+    else arr.push(id);
+    selectedIds.value = arr;
+    selectedId.value = id;
+  } else if (event && event.shiftKey && selectedId.value) {
+    // Shift + 点击：范围选择（基于 elements 数组顺序）
+    const ids = elements.value.map(e => e.id);
+    const from = ids.indexOf(selectedId.value);
+    const to = ids.indexOf(id);
+    if (from !== -1 && to !== -1) {
+      const start = Math.min(from, to);
+      const end = Math.max(from, to);
+      const arr = selectedIds.value.slice();
+      for (let i = start; i <= end; i++) {
+        if (!arr.includes(ids[i])) arr.push(ids[i]);
+      }
+      selectedIds.value = arr;
+      selectedId.value = id;
+    }
+  } else {
+    // 普通点击：单选，清空多选
+    selectedId.value = id;
+    selectedIds.value = [];
+  }
+}
 function removeEl(id) {
   elements.value = elements.value.filter(e => e.id !== id);
   if (selectedId.value === id) selectedId.value = null;
+  selectedIds.value = selectedIds.value.filter(x => x !== id);
+}
+
+// 批量删除
+function removeSelected() {
+  const ids = selectedIds.value;
+  if (ids.length === 0) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 个元素？`)) return;
+  elements.value = elements.value.filter(e => !ids.includes(e.id));
+  selectedIds.value = [];
+  selectedId.value = null;
+}
+
+// 批量对齐
+function alignSelected(direction) {
+  const targets = elements.value.filter(e => selectedIds.value.includes(e.id));
+  if (targets.length < 2) { toast.show('请至少选中 2 个元素', 'warn'); return; }
+  switch (direction) {
+    case 'left': {
+      const min = Math.min(...targets.map(e => e.x));
+      targets.forEach(e => e.x = min);
+      break;
+    }
+    case 'right': {
+      const max = Math.max(...targets.map(e => e.x + e.w));
+      targets.forEach(e => e.x = max - e.w);
+      break;
+    }
+    case 'top': {
+      const min = Math.min(...targets.map(e => e.y));
+      targets.forEach(e => e.y = min);
+      break;
+    }
+    case 'bottom': {
+      const max = Math.max(...targets.map(e => e.y + e.h));
+      targets.forEach(e => e.y = max - e.h);
+      break;
+    }
+    case 'hcenter': {
+      const min = Math.min(...targets.map(e => e.x));
+      const max = Math.max(...targets.map(e => e.x + e.w));
+      const center = (min + max) / 2;
+      targets.forEach(e => e.x = center - e.w / 2);
+      break;
+    }
+    case 'vcenter': {
+      const min = Math.min(...targets.map(e => e.y));
+      const max = Math.max(...targets.map(e => e.y + e.h));
+      const center = (min + max) / 2;
+      targets.forEach(e => e.y = center - e.h / 2);
+      break;
+    }
+  }
+  toast.show('对齐完成', 'success');
+}
+
+// 批量统一尺寸
+function resizeSelected(mode) {
+  const targets = elements.value.filter(e => selectedIds.value.includes(e.id));
+  if (targets.length < 2) { toast.show('请至少选中 2 个元素', 'warn'); return; }
+  if (mode === 'max') {
+    const maxW = Math.max(...targets.map(e => e.w));
+    const maxH = Math.max(...targets.map(e => e.h));
+    targets.forEach(e => { e.w = maxW; e.h = maxH; });
+  } else if (mode === 'min') {
+    const minW = Math.min(...targets.map(e => e.w));
+    const minH = Math.min(...targets.map(e => e.h));
+    targets.forEach(e => { e.w = minW; e.h = minH; });
+  } else if (mode === 'avg') {
+    const avgW = Math.round(targets.reduce((s, e) => s + e.w, 0) / targets.length);
+    const avgH = Math.round(targets.reduce((s, e) => s + e.h, 0) / targets.length);
+    targets.forEach(e => { e.w = avgW; e.h = avgH; });
+  }
+  toast.show('尺寸已统一', 'success');
 }
 
 // 拖动 / 缩放
@@ -1025,6 +1174,9 @@ watch(images, () => {
           emptySlot.src = URL.createObjectURL(blob);
         }
         emptySlot._srcLoading = false;
+      }).catch(err => {
+        emptySlot._srcLoading = false;
+        toast.show('读取文件失败: ' + err.message, 'error');
       });
     }
   }
@@ -1046,13 +1198,14 @@ onMounted(async () => {
 <style scoped>
 .puzzle-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 230px 1fr;
   gap: 14px;
   align-items: start;
+  min-width: 0;
 }
-.puzzle-side { position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; padding-right: 4px; }
-.row-2col { display: grid; grid-template-columns: 1fr 1fr; }
-.num { width: 70px; }
+.puzzle-side { position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; overflow-x: hidden; padding-right: 2px; }
+.row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.num { width: 100%; min-width: 0; }
 .color-pick {
   width: 26px; height: 22px; padding: 0; border: 1px solid var(--border);
   border-radius: 4px; background: #fff; cursor: pointer;
@@ -1139,14 +1292,19 @@ onMounted(async () => {
 
 .el {
   position: absolute;
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   cursor: move;
   user-select: none;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
 }
 .el:hover { border-color: rgba(6, 214, 244, 0.5); }
-.el.selected { border-color: var(--neon-cyan); box-shadow: 0 0 0 1px var(--neon-cyan-soft), 0 0 14px var(--neon-cyan-soft); }
+.el.selected {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 2px var(--neon-cyan-soft), 0 0 20px rgba(6, 214, 244, 0.25);
+  z-index: 10;
+}
 .el-text { white-space: pre-wrap; text-align: center; line-height: 1.2; }
 .el-image { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .el-slot, .el-image-slot { background: rgba(6, 214, 244, 0.05); border-style: dashed; border-color: rgba(6, 214, 244, 0.4); }
@@ -1158,8 +1316,13 @@ onMounted(async () => {
 .handle {
   position: absolute; width: 10px; height: 10px;
   background: #fff; border: 2px solid var(--neon-cyan);
-  border-radius: 2px;
-  box-shadow: 0 0 0 2px rgba(6, 214, 244, 0.2);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgba(6, 214, 244, 0.2), 0 2px 6px rgba(6, 214, 244, 0.3);
+  transition: transform .1s, box-shadow .1s;
+}
+.handle:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 3px rgba(6, 214, 244, 0.3), 0 2px 8px rgba(6, 214, 244, 0.4);
 }
 .handle.tl { left: -5px; top: -5px; cursor: nwse-resize; }
 .handle.tr { right: -5px; top: -5px; cursor: nesw-resize; }
@@ -1180,8 +1343,34 @@ onMounted(async () => {
 .canvas-hint {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-3); font-size: 14px;
   pointer-events: none;
+  z-index: 5;
+}
+.hint-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 36px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(4px);
+}
+.hint-inner i[data-lucide] {
+  width: 32px; height: 32px;
+  color: var(--text-4);
+}
+.hint-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.hint-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-3);
 }
 
 .zoom-bar {
@@ -1214,15 +1403,44 @@ onMounted(async () => {
 }
 .img-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.batch-panel {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  animation: batchIn .2s ease;
+}
+@keyframes batchIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.batch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.batch-grid .btn-xs,
+.batch-panel .btn-xs {
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: 6px;
+  min-height: 26px;
+  justify-content: center;
+}
+.batch-grid .btn-xs i[data-lucide] {
+  width: 13px; height: 13px;
+}
+
 @media (max-width: 1024px) {
   .puzzle-layout { grid-template-columns: 1fr; }
-  .puzzle-side { position: static; max-height: none; }
+  .puzzle-side { position: static; max-height: none; overflow-x: visible; }
 }
-  .img-folder-list { display: flex; flex-direction: column; gap: 4px; }
+  .img-folder-list { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
   .img-folder-row {
     display: flex; align-items: center; gap: 6px;
     padding: 4px 6px; background: var(--panel-2);
     border: 1px solid var(--border); border-radius: 6px;
+    min-width: 0;
   }
   .img-folder-idx {
     display: inline-flex; align-items: center; justify-content: center;
@@ -1231,7 +1449,7 @@ onMounted(async () => {
     border-radius: 4px; font-size: 11px; font-weight: 600; flex-shrink: 0;
   }
   .img-folder-path {
-    flex: 1; font-size: 11px; color: var(--text-2);
+    flex: 1; min-width: 0; font-size: 11px; color: var(--text-2);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .progress-bar { height: 4px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }

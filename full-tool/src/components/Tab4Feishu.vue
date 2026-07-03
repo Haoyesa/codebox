@@ -375,29 +375,36 @@ onMounted(async () => {
 .folder-title { font-weight: 600; font-size: 14px; }
 .muted { color: var(--text-3); font-size: 13px; }
 .folder-empty {
-  margin-top: 12px; padding: 28px 12px;
-  border: 1px dashed var(--border-strong);
+  margin-top: 12px; padding: 32px 12px;
+  border: 1.5px dashed var(--border-strong);
   border-radius: var(--radius);
   text-align: center;
   color: var(--text-3);
   font-size: 13px;
+  transition: border-color .2s, background .2s;
 }
-.folder-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.folder-empty:hover { border-color: var(--neon-cyan); background: var(--neon-cyan-soft); }
+.folder-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .folder-item {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 8px;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
 }
+.folder-item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); transform: translateX(2px); }
 .folder-idx {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 28px; height: 22px;
   background: var(--neon-cyan-soft);
   color: #0369a1;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px; font-weight: 600;
+  font-family: var(--font-mono);
+  transition: transform .15s;
 }
+.folder-item:hover .folder-idx { transform: scale(1.05); }
 .path-input { flex: 1; background: #fff; font-size: 12px; }
 .num { width: 56px; }
 
@@ -408,14 +415,16 @@ onMounted(async () => {
 
 .log-pane {
   margin-top: 14px; max-height: 200px; overflow-y: auto;
-  background: rgba(15, 23, 42, 0.03);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.04) 100%);
   border: 1px solid var(--border-2);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
+  line-height: 1.6;
 }
-.log-line { display: flex; gap: 8px; padding: 2px 0; }
+.log-line { display: flex; gap: 8px; padding: 2px 0; border-radius: 3px; transition: background .1s; }
+.log-line:hover { background: rgba(15, 23, 42, 0.03); }
 .log-time { color: var(--text-3); flex-shrink: 0; }
 .log-msg { color: var(--text-2); }
 .log-line.ok .log-msg { color: var(--ok-deep); }

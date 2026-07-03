@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   libreOfficeSetPath: (exePath) => ipcRenderer.invoke('libreoffice:setPath', exePath),
 
   // 文件系统
-  readDir: (path) => ipcRenderer.invoke('fs:readDir', path),
+  readDir: (path, options) => ipcRenderer.invoke('fs:readDir', path, options),
   readFile: (path) => ipcRenderer.invoke('fs:readFile', path),
   getFileInfo: (path) => ipcRenderer.invoke('fs:getFileInfo', path),
   saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
@@ -30,5 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   feishuUpdateRecord: (payload) => ipcRenderer.invoke('feishu:updateRecord', payload),
 
   // 平台信息
-  platform: process.platform
+  platform: process.platform,
+
+  // 外部链接
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
 });

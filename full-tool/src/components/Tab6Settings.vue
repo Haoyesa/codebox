@@ -127,6 +127,33 @@
       </div>
     </div>
 
+    <!-- 数据管理 -->
+    <p class="desc" style="padding-top: 18px;">备份或恢复应用设置。</p>
+    <div class="card">
+      <h3 class="card-title"><i data-lucide="database"></i> 数据管理</h3>
+      <div class="row" style="gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-sm" @click="exportSettings">
+          <i data-lucide="download"></i>导出设置
+        </button>
+        <button class="btn btn-sm" @click="triggerImport">
+          <i data-lucide="upload"></i>导入设置
+        </button>
+        <button class="btn btn-sm btn-ghost" @click="resetSettings">
+          <i data-lucide="rotate-ccw"></i>恢复默认
+        </button>
+      </div>
+      <p class="setting-hint muted" style="margin-top: 10px;">
+        导出将下载包含路径、授权等配置的 settings.json；导入后会立即生效并刷新页面。
+      </p>
+      <input
+        ref="importInputRef"
+        type="file"
+        accept=".json"
+        style="display: none;"
+        @change="onImportFileChange"
+      />
+    </div>
+
     <!-- 运行日志 -->
     <p class="desc" style="padding-top: 18px;">查看操作过程、错误与提示。</p>
     <div class="card">
@@ -184,7 +211,7 @@
         <span style="font-weight: 600;">联系开发者</span>
       </div>
       <p class="muted" style="margin: 8px 0 0; font-size: 13px;">
-        如有问题或建议，请联系开发者：<b class="mono">尹星河 (teaxh613)</b>
+        如有问题或建议，请联系开发者：<b class="mono">webzhouh@163.com</b>
       </p>
     </div>
   </section>
@@ -193,7 +220,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useToast } from '../composables/useToast.js';
-import { useSettings } from '../composables/useSettings.js';
+import { useSettings, defaultSettings } from '../composables/useSettings.js';
 import { truncatePath } from '../utils/file.js';
 
 const toast = useToast();
@@ -354,6 +381,78 @@ function openCommunity() {
   window.open('https://github.com/Haoyesa/codebox', '_blank');
 }
 
+/* ---------- 数据管理 ---------- */
+const importInputRef = ref(null);
+
+function exportSettings() {
+  try {
+    const raw = localStorage.getItem('fulltool_settings_v2');
+    const data = raw ? JSON.parse(raw) : {};
+    const payload = {
+      _app: 'FullTool',
+      _version: appVersion.value,
+      _exportedAt: new Date().toISOString(),
+      settings: data
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fulltool-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    pushLog('info', '设置已导出');
+    toast.show('设置已导出', 'success');
+  } catch (err) {
+    toast.show('导出失败: ' + err.message, 'error');
+  }
+}
+
+function triggerImport() {
+  importInputRef.value?.click();
+}
+
+function onImportFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const payload = JSON.parse(ev.target.result);
+      if (!payload.settings || typeof payload.settings !== 'object') {
+        throw new Error('文件格式不正确，缺少 settings 对象');
+      }
+      // Validate known keys to avoid corrupting storage
+      const allowedKeys = Object.keys(defaultSettings);
+      const imported = {};
+      for (const key of allowedKeys) {
+        if (key in payload.settings) imported[key] = payload.settings[key];
+      }
+      localStorage.setItem('fulltool_settings_v2', JSON.stringify(imported));
+      pushLog('info', '设置已导入，即将刷新');
+      toast.show('设置导入成功，页面即将刷新', 'success');
+      setTimeout(() => location.reload(), 800);
+    } catch (err) {
+      toast.show('导入失败: ' + err.message, 'error');
+    } finally {
+      e.target.value = '';
+    }
+  };
+  reader.onerror = () => {
+    toast.show('读取文件失败', 'error');
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function resetSettings() {
+  if (!confirm('确定恢复默认设置？这将清除所有自定义路径和授权信息。')) return;
+  settings.reset();
+  pushLog('info', '设置已恢复默认');
+  toast.show('设置已恢复默认，页面即将刷新', 'success');
+  setTimeout(() => location.reload(), 800);
+}
+
 /* ---------- 日志系统 ---------- */
 const logFilter = ref('all');
 const logs = ref([]);
@@ -464,7 +563,6 @@ onBeforeUnmount(() => uninstallLogInterceptor());
 
 <style scoped>
 .settings-row1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
-.card-title { margin: 0 0 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .card-title i[data-lucide] { width: 16px; height: 16px; color: var(--primary); }
 
 /* 设置行 */
@@ -499,23 +597,29 @@ onBeforeUnmount(() => uninstallLogInterceptor());
   display: grid;
   grid-template-columns: 90px 50px 1fr 28px;
   gap: 10px;
-  padding: 4px 0;
+  padding: 5px 4px;
   font-size: 12px;
   border-bottom: 1px dashed var(--border-2);
   align-items: center;
+  border-radius: 3px;
+  transition: background .1s;
 }
+.log-row:hover { background: var(--panel-2); }
 .log-row:last-child { border-bottom: 0; }
-.log-time { color: var(--text-3); }
+.log-time { color: var(--text-3); font-family: var(--font-mono); }
 .log-level {
   font-family: var(--font-mono);
   font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
   text-align: center;
+  font-weight: 500;
   background: var(--panel-3);
   color: var(--text-2);
   height: fit-content;
+  transition: transform .15s;
 }
+.log-row:hover .log-level { transform: scale(1.05); }
 .log-info .log-level { background: var(--info-soft); color: var(--info); }
 .log-warn .log-level { background: var(--warn-soft); color: var(--warn-deep); }
 .log-error .log-level { background: var(--primary-soft); color: var(--primary-deep); }
