@@ -193,10 +193,13 @@
 
         <div class="canvas-stage" ref="stageRef" @wheel.prevent="onWheel" @mousedown.self="onStageClick">
           <div
-            class="canvas-frame"
-            :class="{ transparent: canvas.transparent }"
-            :style="frameStyle"
-          >
+          class="canvas-frame"
+          :class="{ transparent: canvas.transparent, dragging: isDragging }"
+          :style="frameStyle"
+          @dragover.prevent="onDragOver"
+          @dragleave="onDragLeave"
+          @drop.prevent="onDrop"
+        >
             <!-- 背景 -->
             <img v-if="canvas.bgImg" :src="canvas.bgImg" class="bg-layer" />
             <div v-else-if="canvas.solidBg && !canvas.transparent" class="bg-layer" :style="{ background: canvas.bgColor }"></div>
@@ -269,6 +272,15 @@
             </span>
             <button class="btn btn-sm btn-ghost" @click="clearImageFolders">清空全部</button>
           </div>
+
+          <!-- 批量重命名 -->
+          <div v-if="images.length" class="rename-bar">
+            <div class="row" style="gap: 8px; align-items: center;">
+              <input v-model="renamePattern" placeholder="命名规则，如 product_{n}" class="rename-input" />
+              <button class="btn btn-sm" @click="applyRename">应用重命名</button>
+            </div>
+          </div>
+
           <div class="image-list" v-if="images.length">
             <div v-for="(img, i) in images" :key="i" class="img-chip" :title="img.name">
               <i data-lucide="image" style="width: 12px; height: 12px;"></i>
@@ -358,6 +370,7 @@ const showPreviewModal = ref(false);
 
 // canvas menu state
 const canvasMenuOpen = ref(false);
+const isDragging = ref(false);
 
 // generation state
 const isGenerating = ref(false);
@@ -376,6 +389,9 @@ const templates = ref([]);
 const lastSavedSnapshot = ref('');
 // Used to anchor the more-horizontal dropdown so click-outside-to-close works.
 const canvasMenuAnchorRef = ref(null);
+
+// 批量重命名
+const renamePattern = ref('');
 
 function serializeCurrent() {
   return JSON.stringify({
@@ -503,7 +519,7 @@ function clearTexts() {
 
 async function pickDecoration() {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中添加装饰图', 'warn');
+    toast.show('请在 Electron 版本中添加装饰图', 'warn');
     return;
   }
   const r = await window.electronAPI.openFiles({ filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }] });
@@ -527,11 +543,85 @@ async function pickDecoration() {
     };
     img.src = url;
   } catch (err) {
-    window.showToast?.('读取图片失败：' + err.message, 'error');
+    toast.show('读取图片失败：' + err.message, 'error');
   }
 }
 function clearImages() {
   elements.value = elements.value.filter(e => e.type !== 'image');
+}
+
+// Drag & drop images onto canvas
+function onDragOver(e) {
+  e.preventDefault();
+  isDragging.value = true;
+}
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    isDragging.value = false;
+  }
+}
+async function onDrop(e) {
+  e.preventDefault();
+  isDragging.value = false;
+  const files = e.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+
+  const imgExts = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'bmp'];
+  let addedCount = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!imgExts.includes(ext)) continue;
+
+    try {
+      let url;
+      if (window.electronAPI && file.path) {
+        const fr = await window.electronAPI.readFile(file.path);
+        if (!fr.success) throw new Error(fr.error);
+        const mime = getMimeFromPath(file.path);
+        const blob = new Blob([fr.data], { type: mime });
+        url = URL.createObjectURL(blob);
+      } else {
+        url = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+
+      const maxW = canvas.width * 0.4;
+      const maxH = canvas.height * 0.3;
+      const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+      elements.value.push({
+        id: newId(),
+        type: 'image',
+        src: url,
+        x: 40 + addedCount * 20,
+        y: 40 + addedCount * 20,
+        w: img.width * ratio,
+        h: img.height * ratio
+      });
+      addedCount++;
+    } catch (err) {
+      console.error('Drop image failed:', err);
+      toast.show('添加图片失败：' + file.name, 'error');
+    }
+  }
+
+  if (addedCount > 0) {
+    const last = elements.value[elements.value.length - 1];
+    selectedId.value = last.id;
+    toast.show(`已添加 ${addedCount} 张图片`, 'success');
+  }
 }
 
 function select(id, event) {
@@ -571,10 +661,10 @@ function removeEl(id) {
 }
 
 // 批量删除
-function removeSelected() {
+async function removeSelected() {
   const ids = selectedIds.value;
   if (ids.length === 0) return;
-  if (!confirm(`确定删除选中的 ${ids.length} 个元素？`)) return;
+  if (!(await window.appConfirm({ title: '删除确认', message: `确定删除选中的 ${ids.length} 个元素？`, type: 'warning' }))) return;
   elements.value = elements.value.filter(e => !ids.includes(e.id));
   selectedIds.value = [];
   selectedId.value = null;
@@ -690,14 +780,14 @@ function onDragEnd() {
 // 背景 / 图片
 async function pickBg() {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中使用', 'warn');
+    toast.show('请在 Electron 版本中使用', 'warn');
     return;
   }
   const r = await window.electronAPI.openFiles({ filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp'] }] });
   if (r.canceled || !r.filePaths.length) return;
   const filePath = r.filePaths[0];
   const fr = await window.electronAPI.readFile(filePath);
-  if (!fr.success) { window.showToast?.(fr.error, 'error'); return; }
+  if (!fr.success) { toast.show(fr.error, 'error'); return; }
   const mime = getMimeFromPath(filePath);
   const blob = new Blob([fr.data], { type: mime });
   if (canvas.bgImg) try { URL.revokeObjectURL(canvas.bgImg); } catch (_) {}
@@ -706,11 +796,11 @@ async function pickBg() {
 
 async function addImageFolder() {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中使用', 'warn');
+    toast.show('请在 Electron 版本中使用', 'warn');
     return;
   }
   if (rule.mode === 'single' && imageFolders.value.length >= 1) {
-    window.showToast?.('单一文件夹模式：只能添加 1 个文件夹，请先清空', 'warn');
+    toast.show('单一文件夹模式：只能添加 1 个文件夹，请先清空', 'warn');
     return;
   }
   const r = await window.electronAPI.openDirectory();
@@ -723,7 +813,7 @@ async function loadImageFolder(dirPath, recursive) {
     recursive,
     extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
   });
-  if (!r.success) { window.showToast?.(r.error, 'error'); return; }
+  if (!r.success) { toast.show(r.error, 'error'); return; }
   const sorted = r.files.slice().sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
   const sep = dirPath.includes('\\') ? '\\' : '/';
   const base = dirPath.replace(/[\\/]+$/, '');
@@ -733,7 +823,7 @@ async function loadImageFolder(dirPath, recursive) {
     recursive,
     files: sorted.map(name => ({ name, path: base + sep + name }))
   });
-  window.showToast?.('已添加：' + sorted.length + ' 张图片', 'success');
+  toast.show('已添加：' + sorted.length + ' 张图片', 'success');
 }
 
 function removeImageFolder(id) {
@@ -746,7 +836,7 @@ async function clearImageFolders() {
 
 async function pickOutput() {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中使用', 'warn');
+    toast.show('请在 Electron 版本中使用', 'warn');
     return;
   }
   const r = await window.electronAPI.selectOutputDir();
@@ -772,7 +862,7 @@ function newTemplate() {
   const name = prompt('新模板名称', '模板' + (templates.value.length + 1));
   if (!name) return;
   if (templates.value.includes(name)) {
-    window.showToast?.('已存在同名模板', 'warn'); return;
+    toast.show('已存在同名模板', 'warn'); return;
   }
   templates.value.push(name);
   persistTemplates();
@@ -780,10 +870,10 @@ function newTemplate() {
   elements.value = [];
   canvas.bgImg = '';
   currentTemplate.value = name;
-  window.showToast?.('已创建模板：' + name, 'success');
+  toast.show('已创建模板：' + name, 'success');
 }
 function saveTemplate() {
-  if (!currentTemplate.value) { window.showToast?.('请先选择或新建模板', 'warn'); return; }
+  if (!currentTemplate.value) { toast.show('请先选择或新建模板', 'warn'); return; }
   // Persist canvas dims + bg color/transparent flag (not the bgImg blob URL, which dies on reload).
   const snapshot = {
     canvas: {
@@ -804,7 +894,7 @@ function saveTemplate() {
   all[currentTemplate.value] = snapshot;
   persistAllTemplateData(all);
   lastSavedSnapshot.value = serializeCurrent();
-  window.showToast?.('已保存：' + currentTemplate.value, 'success');
+  toast.show('已保存：' + currentTemplate.value, 'success');
 }
 
 function loadTemplate(name) {
@@ -844,9 +934,9 @@ function loadTemplate(name) {
   // Reset baseline so the dirty dot clears after a switch.
   lastSavedSnapshot.value = serializeCurrent();
 }
-function deleteTemplate() {
+async function deleteTemplate() {
   if (!currentTemplate.value) return;
-  if (!confirm('删除模板 ' + currentTemplate.value + ' ?')) return;
+  if (!(await window.appConfirm({ title: '删除模板', message: '删除模板 ' + currentTemplate.value + ' ?', type: 'warning' }))) return;
   const name = currentTemplate.value;
   templates.value = templates.value.filter(t => t !== name);
   persistTemplates();
@@ -854,7 +944,7 @@ function deleteTemplate() {
   delete all[name];
   persistAllTemplateData(all);
   currentTemplate.value = '';
-  window.showToast?.('已删除', 'success');
+  toast.show('已删除', 'success');
 }
 function deleteCurrentTemplate() {
   if (!currentTemplate.value) return;
@@ -882,9 +972,9 @@ function closeCanvasMenu() {
   document.removeEventListener('mousedown', onDocClickCloseMenu, true);
 }
 
-function clearAllElements() {
+async function clearAllElements() {
   if (elements.value.length === 0) return;
-  if (!confirm('清空画布上所有元素？此操作不影响模板本身。')) return;
+  if (!(await window.appConfirm({ title: '清空画布', message: '清空画布上所有元素？此操作不影响模板本身。', type: 'warning' }))) return;
   for (const el of elements.value) {
     if ((el.type === 'image-slot' || el.type === 'image') && el.src) {
       try { URL.revokeObjectURL(el.src); } catch (_) {}
@@ -953,7 +1043,7 @@ async function exportTemplateJson() {
   const a = document.createElement('a');
   a.href = url; a.download = (data.name || 'template') + '.json'; a.click();
   URL.revokeObjectURL(url);
-  window.showToast?.('已导出 JSON', 'success');
+  toast.show('已导出 JSON', 'success');
   closeCanvasMenu();
 }
 
@@ -974,7 +1064,7 @@ async function importTemplateJson() {
   const r = await window.electronAPI.openFiles({ filters: [{ name: 'JSON', extensions: ['json'] }] });
   if (r.canceled || !r.filePaths.length) return;
   const fr = await window.electronAPI.readFile(r.filePaths[0]);
-  if (!fr.success) { window.showToast?.(fr.error, 'error'); return; }
+  if (!fr.success) { toast.show(fr.error, 'error'); return; }
   applyTemplateJson(new TextDecoder('utf-8').decode(new Uint8Array(fr.data)));
   closeCanvasMenu();
 }
@@ -990,18 +1080,18 @@ function applyTemplateJson(text) {
         return c;
       });
       slotCount = elements.value.reduce((m, e) => (e.type === 'image-slot' || e.type === 'slot') ? Math.max(m, e.index || 0) : m, 0);
-      window.showToast?.('已导入 JSON', 'success');
+      toast.show('已导入 JSON', 'success');
     }
   } catch (e) {
-    window.showToast?.('JSON 解析失败：' + e.message, 'error');
+    toast.show('JSON 解析失败：' + e.message, 'error');
   }
 }
 
 // 生成
 async function previewAll() {
-  if (!elements.value.length) { window.showToast?.('画布为空', 'warn'); return; }
+  if (!elements.value.length) { toast.show('画布为空', 'warn'); return; }
   if (imageFolders.value.length === 0 || imageFolders.value[0].files.length === 0) {
-    window.showToast?.('请先添加图片文件夹', 'warn'); return;
+    toast.show('请先添加图片文件夹', 'warn'); return;
   }
   const frame = document.querySelector('.canvas-frame');
   if (!frame) return;
@@ -1040,7 +1130,7 @@ async function previewAll() {
     previewUrl.value = URL.createObjectURL(blob);
     showPreviewModal.value = true;
   } catch (err) {
-    window.showToast?.('预览失败：' + err.message, 'error');
+    toast.show('预览失败：' + err.message, 'error');
   } finally {
     for (const slot of slots) {
       const prev = prevSrcs.get(slot.id);
@@ -1058,19 +1148,19 @@ function closePreview() {
 }
 async function startGenerate() {
   if (!canGenerate.value) {
-    window.showToast?.('请先完成模板、图片文件夹、输出目录三项配置', 'warn');
+    toast.show('请先完成模板、图片文件夹、输出目录三项配置', 'warn');
     return;
   }
   const total = estimatedCount.value;
-  if (total === 0) { window.showToast?.('没有可生成的图片', 'warn'); return; }
+  if (total === 0) { toast.show('没有可生成的图片', 'warn'); return; }
 
   const slots = elements.value.filter(e => e.type === 'image-slot');
   if (rule.mode === 'multi' && slots.length === 0) {
-    window.showToast?.('多文件夹模式：模板里没有图片坑位', 'warn'); return;
+    toast.show('多文件夹模式：模板里没有图片坑位', 'warn'); return;
   }
 
   const frame = document.querySelector('.canvas-frame');
-  if (!frame) { window.showToast?.('画布节点未找到', 'error'); return; }
+  if (!frame) { toast.show('画布节点未找到', 'error'); return; }
 
   const savedZoom = zoom.value;
   isGenerating.value = true;
@@ -1140,7 +1230,7 @@ async function startGenerate() {
       if (r % 5 === 4) await yieldToMain();
     }
   } catch (err) {
-    window.showToast?.('生成失败：' + err.message, 'error');
+    toast.show('生成失败：' + err.message, 'error');
   } finally {
     for (const slot of slots) {
       const prev = prevSrcs.get(slot.id);
@@ -1152,11 +1242,35 @@ async function startGenerate() {
     const wasAbort = abortGen.value;
     abortGen.value = false;
     genStatus.value = wasAbort ? `已停止（${genDone.value} / ${total}）` : `完成 ${genDone.value} 张`;
-    window.showToast?.(genStatus.value, wasAbort ? 'warn' : 'success');
+    toast.show(genStatus.value, wasAbort ? 'warn' : 'success');
   }
 }
 
 function cancelGenerate() { abortGen.value = true; genStatus.value = '正在停止…'; }
+
+function applyRename() {
+  const pattern = renamePattern.value.trim();
+  if (!pattern) { toast.show('请输入命名规则', 'warn'); return; }
+  if (imageFolders.value.length === 0) { toast.show('没有可重命名的图片', 'warn'); return; }
+
+  let n = 1;
+  const regex = /\{n(?::(\d+))?\}/g;
+
+  for (const folder of imageFolders.value) {
+    for (const file of folder.files) {
+      file.name = pattern.replace(regex, (_match, pad) => {
+        const num = String(n);
+        if (pad) {
+          const width = parseInt(pad, 10);
+          return num.padStart(width, '0');
+        }
+        return num;
+      });
+      n++;
+    }
+  }
+  toast.show('重命名完成', 'success');
+}
 
 // 监听元素变动，自动追加到第一个 image-slot
 watch(images, () => {
@@ -1267,6 +1381,11 @@ onMounted(async () => {
   background: #fff;
   box-shadow: 0 4px 24px rgba(15, 23, 42, 0.12);
   flex-shrink: 0;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.canvas-frame.dragging {
+  border: 2px dashed var(--neon-cyan);
+  background: var(--neon-cyan-soft);
 }
 .canvas-frame.transparent {
   background-image:
@@ -1583,4 +1702,30 @@ onMounted(async () => {
 @keyframes tab3-pop-in {
   from { opacity: 0; transform: scale(0.96) translateY(4px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ============================================================
+   批量重命名
+   ============================================================ */
+.rename-bar {
+  margin-bottom: 10px;
+}
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--panel);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rename-input:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 2px var(--neon-cyan-soft);
+}
+.rename-input::placeholder {
+  color: var(--text-4);
 }</style>

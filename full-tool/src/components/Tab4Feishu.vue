@@ -136,6 +136,8 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { useToast } from '../composables/useToast.js';
+const toast = useToast();
 
 const appId = ref('');
 const appSecret = ref('');
@@ -180,15 +182,15 @@ function removeFolder(id) {
 
 async function verifyAuth() {
   if (!appId.value || !appSecret.value) {
-    window.showToast?.('请先填写 App ID 和 App Secret', 'warn');
+    toast.show('请先填写 App ID 和 App Secret', 'warn');
     return;
   }
   state.isVerifying = true;
   state.authError = '';
   try {
     const r = await window.electronAPI.feishuGetToken({ appId: appId.value, appSecret: appSecret.value });
-    if (!r.success) { state.authError = r.error || '验证失败'; state.authOk = false; window.showToast?.(state.authError, 'error'); }
-    else { state.authOk = true; window.showToast?.('飞书授权验证通过', 'success'); }
+    if (!r.success) { state.authError = r.error || '验证失败'; state.authOk = false; toast.show(state.authError, 'error'); }
+    else { state.authOk = true; toast.show('飞书授权验证通过', 'success'); }
   } catch (e) {
     state.authError = e.message; state.authOk = false;
   } finally {
@@ -198,7 +200,7 @@ async function verifyAuth() {
 
 async function pickFolderPath(folder) {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中选择目录', 'warn');
+    toast.show('请在 Electron 版本中选择目录', 'warn');
     return;
   }
   const r = await window.electronAPI.openDirectory();
@@ -225,12 +227,12 @@ function parseBitable(url) {
 let abortFlag = false;
 async function startUpload() {
   if (!canStart.value) {
-    window.showToast?.('请补全授权码、表格链接、文件夹', 'warn');
+    toast.show('请补全授权码、表格链接、文件夹', 'warn');
     return;
   }
   const bitable = parseBitable(tableUrl.value);
   if (!bitable) {
-    window.showToast?.('无法解析表格链接，请检查格式', 'error');
+    toast.show('无法解析表格链接，请检查格式', 'error');
     return;
   }
   abortFlag = false;
@@ -335,18 +337,18 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
     if (abortFlag) {
       state.statusText = '已取消';
       state.dotClass = 'warn';
-      window.showToast?.('已取消上传', 'warn');
+      toast.show('已取消上传', 'warn');
     } else {
       state.statusText = '上传完成';
       state.dotClass = '';
       log('ok', '全部完成');
-      window.showToast?.(`完成 ${state.progress.done} 行`, 'success');
+      toast.show(`完成 ${state.progress.done} 行`, 'success');
     }
   } catch (err) {
     log('err', err.message);
     state.statusText = '出错：' + err.message;
     state.dotClass = 'err';
-    window.showToast?.(err.message, 'error');
+    toast.show(err.message, 'error');
   } finally {
     state.isUploading = false;
   }

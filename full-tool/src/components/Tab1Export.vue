@@ -11,7 +11,7 @@
     <div class="exp-grid">
       <!-- 文件选择卡片 -->
       <div class="card">
-        <div class="card-section">
+        <div class="card-section" :class="{ dragging: isDragging }" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
           <div class="label">文件选择</div>
           <div class="pick-buttons">
             <button class="btn" @click="pickFiles">
@@ -44,6 +44,23 @@
             <i data-lucide="folder-output" style="width:12px;height:12px"></i>
             {{ truncatePath(state.outputDir) }}
           </span>
+        </div>
+
+        <!-- 最近文件 -->
+        <div v-if="recentFiles.length > 0" class="recent-files">
+          <div class="recent-files-label muted mono">最近文件</div>
+          <div class="recent-files-list">
+            <button
+              v-for="(path, i) in recentFiles"
+              :key="i"
+              class="recent-file-item"
+              :title="path"
+              @click="addFileFromRecent(path)"
+            >
+              <i data-lucide="clock" style="width:12px;height:12px"></i>
+              <span class="mono">{{ truncatePath(path) }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- 文件列表 -->
@@ -197,13 +214,15 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
-
 import * as mammoth from 'mammoth';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { pdfToPngs } from '../utils/pdfToPngs.js';
 import { formatSize, truncatePath, getExt, getMimeFromPath, safeOutputDir, getBasename } from '../utils/file.js';
 import { useSettings } from '../composables/useSettings.js';
+import { useToast } from '../composables/useToast.js';
+
+const toast = useToast();
 
 // Formats
 const formats = ['PNG', 'JPG', 'PDF', 'SVG'];
@@ -234,6 +253,8 @@ const settings = reactive({
 });
 
 const loFound = ref(true);
+const isDragging = ref(false);
+const recentFiles = ref([]);
 let exportAbortController = null;
 
 // Computed
@@ -259,7 +280,7 @@ async function pickFiles() {
     input.onchange = (e) => {
       state.files = Array.from(e.target.files);
       state.statusText = `已选择 ${state.files.length} 个文件`;
-      window.showToast?.(`已选择 ${state.files.length} 个文件`);
+      toast.show(`已选择 ${state.files.length} 个文件`);
     };
     input.click();
     return;
@@ -274,7 +295,8 @@ async function pickFiles() {
       size: 0
     }));
     state.statusText = `已选择 ${state.files.length} 个文件`;
-    window.showToast?.(`已选择 ${state.files.length} 个文件`, 'success');
+    toast.show(`已选择 ${state.files.length} 个文件`, 'success');
+    addRecentFiles(result.filePaths);
     await nextTick();
     window.lucide?.createIcons();
   }
@@ -282,7 +304,7 @@ async function pickFiles() {
 
 async function pickFolder() {
   if (!window.electronAPI) {
-    window.showToast?.('浏览器模式下无法选择文件夹，请使用 Electron 版本', 'error');
+    toast.show('浏览器模式下无法选择文件夹，请使用 Electron 版本', 'error');
     return;
   }
 
@@ -301,7 +323,7 @@ async function pickFolder() {
         })
       });
       state.statusText = `已选择文件夹：${getBasename(folderPath)}`;
-      window.showToast?.('文件夹已添加', 'success');
+      toast.show('文件夹已添加', 'success');
       await nextTick();
       window.lucide?.createIcons();
     }
@@ -310,7 +332,7 @@ async function pickFolder() {
 
 async function pickOutputDir() {
   if (!window.electronAPI) {
-    window.showToast?.('浏览器模式下无法选择目录，请使用 Electron 版本', 'error');
+    toast.show('浏览器模式下无法选择目录，请使用 Electron 版本', 'error');
     return;
   }
 
@@ -320,17 +342,120 @@ async function pickOutputDir() {
     if (result.filePaths && result.filePaths.length > 0) {
       state.outputDir = result.filePaths[0];
       state.statusText = '输出目录已设置';
-      window.showToast?.('输出目录已设置', 'success');
+      toast.show('输出目录已设置', 'success');
     }
   } catch (err) {
     console.error('[pickOutputDir]', err);
-    window.showToast?.('选择目录失败：' + (err.message || '未知错误'), 'error');
+    toast.show('选择目录失败：' + (err.message || '未知错误'), 'error');
   }
 }
 
 function clearFiles() {
   state.files = [];
   state.statusText = '选择文件或文件夹后自动扫描';
+}
+
+// Recent files
+function loadRecentFiles() {
+  try {
+    const raw = localStorage.getItem('fulltool_recent_files');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        recentFiles.value = parsed;
+      }
+    }
+  } catch (_) {
+    recentFiles.value = [];
+  }
+}
+
+function saveRecentFiles() {
+  try {
+    localStorage.setItem('fulltool_recent_files', JSON.stringify(recentFiles.value));
+  } catch (_) {}
+}
+
+function addRecentFiles(paths) {
+  if (!paths || paths.length === 0) return;
+  const filtered = paths.filter(p => typeof p === 'string' && p.length > 0);
+  const current = recentFiles.value.filter(p => !filtered.includes(p));
+  recentFiles.value = [...filtered, ...current].slice(0, 10);
+  saveRecentFiles();
+}
+
+async function addFileFromRecent(filePath) {
+  if (!filePath) return;
+  if (state.files.some(f => f.path === filePath)) {
+    toast.show('该文件已在列表中', 'warn');
+    return;
+  }
+
+  if (window.electronAPI) {
+    try {
+      const info = await window.electronAPI.getFileInfo(filePath);
+      if (info && info.exists) {
+        state.files.push({
+          path: filePath,
+          name: getBasename(filePath),
+          size: info.size || 0
+        });
+        state.statusText = `已选择 ${state.files.length} 个文件`;
+        toast.show('已添加：' + getBasename(filePath), 'success');
+        addRecentFiles([filePath]);
+        await nextTick();
+        window.lucide?.createIcons();
+      } else {
+        toast.show('文件不存在：' + truncatePath(filePath), 'error');
+        // Remove from recent if file no longer exists
+        recentFiles.value = recentFiles.value.filter(p => p !== filePath);
+        saveRecentFiles();
+      }
+    } catch (err) {
+      toast.show('添加失败：' + (err.message || '未知错误'), 'error');
+    }
+  } else {
+    // Browser fallback cannot access local file path
+    toast.show('浏览器模式下无法添加本地文件', 'error');
+  }
+}
+
+// Drag & drop
+function onDragOver(e) {
+  e.preventDefault();
+  isDragging.value = true;
+}
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    isDragging.value = false;
+  }
+}
+async function onDrop(e) {
+  e.preventDefault();
+  isDragging.value = false;
+  const files = e.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+
+  const added = [];
+  const addedPaths = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (window.electronAPI && file.path) {
+      added.push({ path: file.path, name: getBasename(file.path), size: file.size || 0 });
+      addedPaths.push(file.path);
+    } else {
+      added.push(file);
+    }
+  }
+
+  if (added.length > 0) {
+    state.files = [...state.files, ...added];
+    state.statusText = `已选择 ${state.files.length} 个文件`;
+    toast.show(`已添加 ${added.length} 个文件`, 'success');
+    if (addedPaths.length > 0) addRecentFiles(addedPaths);
+    await nextTick();
+    window.lucide?.createIcons();
+  }
 }
 
 function cancelExport() {
@@ -434,7 +559,7 @@ async function startExport() {
   state.totalCount = totalFiles;
 
   if (totalFiles === 0) {
-    window.showToast?.('没有可导出的文件', 'error');
+    toast.show('没有可导出的文件', 'error');
     state.isExporting = false;
     return;
   }
@@ -455,7 +580,7 @@ async function startExport() {
 
   const hasNonDocx = allFiles.some(f => f.ext !== 'docx');
   if (!loAvailable && hasNonDocx) {
-    window.showToast?.('未检测到 LibreOffice，PDF/PPT/XLS 等格式将跳过；.docx 仍可导出', 'warn');
+    toast.show('未检测到 LibreOffice，PDF/PPT/XLS 等格式将跳过；.docx 仍可导出', 'warn');
   }
 
   let successCount = 0;
@@ -471,7 +596,7 @@ async function startExport() {
       } else {
         if (!loAvailable) {
           state.skippedFiles.push(file.name);
-          window.showToast?.(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
+          toast.show(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
         } else {
           const loRes = await window.electronAPI.libreOfficeConvert({
             inputPath: file.path,
@@ -506,7 +631,7 @@ async function startExport() {
     } catch (err) {
       console.error('Convert failed for', file.name, err);
       state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
-      window.showToast?.('转换失败：' + file.name, 'error');
+      toast.show('转换失败：' + file.name, 'error');
     }
     state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
     state.progress = Math.round((state.doneCount / totalFiles) * 100);
@@ -528,13 +653,13 @@ async function startExport() {
 
   if (state.cancelRequested) {
     state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + skipExtSummary + '）';
-    window.showToast?.('导出已取消', 'warn');
+    toast.show('导出已取消', 'warn');
   } else {
     let msg = '导出完成：成功 ' + successCount;
     if (failed > 0) msg += '，失败 ' + failed;
     if (skipped > 0) msg += '，跳过 ' + skipped + skipExtSummary;
     state.statusText = msg + skipHint;
-    window.showToast?.(msg, failed > 0 ? 'warn' : (skipped > 0 ? 'warn' : 'success'));
+    toast.show(msg, failed > 0 ? 'warn' : (skipped > 0 ? 'warn' : 'success'));
   }
   state.isExporting = false;
   state.currentFile = '';
@@ -587,7 +712,7 @@ async function stitchPagesToSingleImage(pages, options = {}) {
 async function exportFullPreview() {
   if (!canStart.value || state.isExporting) return;
   if (!window.electronAPI) {
-    window.showToast?.('该功能需要在 Electron 版本中使用', 'error');
+    toast.show('该功能需要在 Electron 版本中使用', 'error');
     return;
   }
 
@@ -616,7 +741,7 @@ async function exportFullPreview() {
   state.totalCount = totalFiles;
 
   if (totalFiles === 0) {
-    window.showToast?.('没有可导出的文件', 'error');
+    toast.show('没有可导出的文件', 'error');
     state.isExporting = false;
     return;
   }
@@ -628,7 +753,7 @@ async function exportFullPreview() {
 
   const hasNonDocx = allFiles.some(f => f.ext !== 'docx');
   if (!loAvailable && hasNonDocx) {
-    window.showToast?.('未检测到 LibreOffice，PDF/PPT/XLS 等格式将跳过；.docx 仍可导出', 'warn');
+    toast.show('未检测到 LibreOffice，PDF/PPT/XLS 等格式将跳过；.docx 仍可导出', 'warn');
   }
 
   let successCount = 0;
@@ -677,7 +802,7 @@ async function exportFullPreview() {
         // 其他格式：LO -> PDF -> pdfToPngs
         if (!loAvailable) {
           state.skippedFiles.push(file.name);
-          window.showToast?.(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
+          toast.show(file.name + ' 需 LibreOffice（点 Tab1 底部提示卡下载安装）', 'warn');
           continue;
         }
         const loRes = await window.electronAPI.libreOfficeConvert({
@@ -702,7 +827,7 @@ async function exportFullPreview() {
     } catch (err) {
       console.error('Preview export failed for', file.name, err);
       state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
-      window.showToast?.('预览生成失败：' + file.name, 'error');
+      toast.show('预览生成失败：' + file.name, 'error');
     }
     state.doneCount = successCount + state.failedFiles.length + state.skippedFiles.length;
     state.progress = Math.round((state.doneCount / totalFiles) * 100);
@@ -713,13 +838,13 @@ async function exportFullPreview() {
   const skipped = state.skippedFiles.length;
   if (state.cancelRequested) {
     state.statusText = '已取消（成功 ' + successCount + '，失败 ' + failed + '，跳过 ' + skipped + '）';
-    window.showToast?.('预览导出已取消', 'warn');
+    toast.show('预览导出已取消', 'warn');
   } else {
     let msg = '预览图已生成：' + successCount + ' 张';
     if (failed > 0) msg += '，失败 ' + failed;
     if (skipped > 0) msg += '，跳过 ' + skipped;
     state.statusText = msg;
-    window.showToast?.(msg, failed > 0 || skipped > 0 ? 'warn' : 'success');
+    toast.show(msg, failed > 0 || skipped > 0 ? 'warn' : 'success');
   }
   state.isExporting = false;
   state.currentFile = '';
@@ -743,7 +868,7 @@ function simulateExport() {
       state.progress = 100;
       state.statusText = `导出完成：${state.files.length} 个文件`;
       state.isExporting = false;
-      window.showToast?.('导出完成！', 'success');
+      toast.show('导出完成！', 'success');
     } else {
       state.progress = Math.round(p);
       state.statusText = `正在导出... ${Math.round(p)}%`;
@@ -752,7 +877,7 @@ function simulateExport() {
 }
 
 async function downloadLO() {
-  window.showToast?.('正在打开下载页面...', 'info');
+  toast.show('正在打开下载页面...', 'info');
   // Open LibreOffice download page
   window.open('https://www.libreoffice.org/download/download/', '_blank');
 }
@@ -770,7 +895,7 @@ async function checkLibreOffice() {
 
 async function pickLOPath() {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中设置', 'error');
+    toast.show('请在 Electron 版本中设置', 'error');
     return;
   }
   const r = await window.electronAPI.openFiles({
@@ -783,9 +908,9 @@ async function pickLOPath() {
   if (res.success) {
     state.loFound = true;
     state.loPath = res.path;
-    window.showToast?.('已指定 LibreOffice 路径：' + res.path, 'success');
+    toast.show('已指定 LibreOffice 路径：' + res.path, 'success');
   } else {
-    window.showToast?.('设置失败：' + (res.error || '未知错误'), 'error');
+    toast.show('设置失败：' + (res.error || '未知错误'), 'error');
   }
 }
 
@@ -793,6 +918,7 @@ onMounted(async () => {
   await nextTick();
   window.lucide?.createIcons();
   await checkLibreOffice();
+  loadRecentFiles();
   // Load default output dir from settings
   const defaultOut = useSettings().get('outputDir');
   if (defaultOut && !state.outputDir) {
@@ -962,6 +1088,15 @@ onMounted(async () => {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.card-section {
+  transition: border-color 0.2s, background 0.2s;
+  border: 2px solid transparent;
+}
+.card-section.dragging {
+  border: 2px dashed var(--neon-cyan);
+  background: var(--neon-cyan-soft);
+}
+
 /* JS .docx 脱机渲染节点（页面外脱机布局） */
 .render-host {
   position: fixed;
@@ -989,6 +1124,42 @@ onMounted(async () => {
 
 .tip-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .meta-lo { color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
+
+.recent-files { margin-top: 10px; }
+.recent-files-label {
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--text-3);
+}
+.recent-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.recent-file-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  max-width: 100%;
+}
+.recent-file-item:hover {
+  border-color: var(--primary-2);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.recent-file-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 @media (max-width: 900px) {
   .exp-grid { grid-template-columns: 1fr; }

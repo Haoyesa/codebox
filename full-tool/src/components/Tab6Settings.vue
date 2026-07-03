@@ -445,8 +445,8 @@ function onImportFileChange(e) {
   reader.readAsText(file);
 }
 
-function resetSettings() {
-  if (!confirm('确定恢复默认设置？这将清除所有自定义路径和授权信息。')) return;
+async function resetSettings() {
+  if (!(await window.appConfirm({ message: '确定恢复默认设置？这将清除所有自定义路径和授权信息。' }))) return;
   settings.reset();
   pushLog('info', '设置已恢复默认');
   toast.show('设置已恢复默认，页面即将刷新', 'success');
@@ -513,8 +513,8 @@ function exportLogs() {
   toast.show('日志已导出', 'success');
 }
 
-function clearLogs() {
-  if (logs.value.length && !confirm(`确定清空 ${logs.value.length} 条日志？`)) return;
+async function clearLogs() {
+  if (logs.value.length && !(await window.appConfirm({ message: `确定清空 ${logs.value.length} 条日志？` }))) return;
   logs.value = [];
   toast.show('日志已清空', 'success');
 }

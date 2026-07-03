@@ -119,7 +119,7 @@ function statusLabel(s) {
 
 async function pickOutput() {
   if (!window.electronAPI) {
-    window.showToast?.('请在 Electron 版本中使用', 'warn');
+    toast.show('请在 Electron 版本中使用', 'warn');
     return;
   }
   const r = await window.electronAPI.selectOutputDir();
@@ -136,7 +136,7 @@ function parseXhsUrl(url) {
 let abortFlag = false;
 async function startDownload() {
   if (!canStart.value) {
-    window.showToast?.('请补全链接和输出目录', 'warn');
+    toast.show('请补全链接和输出目录', 'warn');
     return;
   }
   const urls = parseUrls();
@@ -217,7 +217,7 @@ async function startDownload() {
   state.isRunning = false;
   state.statusText = abortFlag ? '已停止' : '完成';
   state.dotClass = abortFlag ? 'warn' : '';
-  window.showToast?.(state.statusText, abortFlag ? 'warn' : 'success');
+  toast.show(state.statusText, abortFlag ? 'warn' : 'success');
 }
 
 function stopDownload() {

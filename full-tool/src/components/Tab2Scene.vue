@@ -150,9 +150,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
-defineOptions({ inheritAttrs: false });
 import { Upload, Layers, Download, RefreshCcw, X, Image, FolderOutput } from 'lucide-vue-next';
 import { useSettings } from '../composables/useSettings.js';
+import { useToast } from '../composables/useToast.js';
+
+const toast = useToast();
+defineOptions({ inheritAttrs: false });
 
 const formats = ['PNG', 'JPG', 'WEBP'];
 
@@ -518,10 +521,10 @@ function onBaseFile(e) {
       renderOverlay();
       nextTick(updateCornerPositions);
     });
-    window.showToast && window.showToast('底图已加载', 'success');
+    toast.show('底图已加载', 'success');
   };
   img.onerror = function() {
-    window.showToast && window.showToast('底图加载失败', 'error');
+    toast.show('底图加载失败', 'error');
   };
   img.src = url;
 }
@@ -541,10 +544,10 @@ function onOverlayFile(e) {
     nextTick(updateCornerPositions);
     step.value = 3;
     statusText.value = statusMap[3];
-    window.showToast && window.showToast('叠图已加载', 'success');
+    toast.show('叠图已加载', 'success');
   };
   img.onerror = function() {
-    window.showToast && window.showToast('叠图加载失败', 'error');
+    toast.show('叠图加载失败', 'error');
   };
   img.src = url;
 }
@@ -622,7 +625,7 @@ async function startExport() {
 
     canvas.toBlob(async function(blob) {
       if (!blob) {
-        window.showToast && window.showToast('导出失败', 'error');
+        toast.show('导出失败', 'error');
         isExporting.value = false;
         return;
       }
@@ -641,11 +644,11 @@ async function startExport() {
       }
       exportProgress.value = 100;
       isExporting.value = false;
-      window.showToast && window.showToast('导出完成', 'success');
+      toast.show('导出完成', 'success');
     }, mime, quality);
   } catch(err) {
     isExporting.value = false;
-    window.showToast && window.showToast('导出失败', 'error');
+    toast.show('导出失败', 'error');
   }
 }
 
