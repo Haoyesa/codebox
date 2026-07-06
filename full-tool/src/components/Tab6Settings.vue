@@ -83,7 +83,7 @@
     </div>
 
     <!-- 授权管理 + 应用信息 -->
-    <p class="desc" style="padding-top:18px;">授权管理与版本更新。</p>
+    <p class="desc" style="padding-top:8px;">授权管理与版本更新。</p>
     <div class="settings-row1">
       <!-- 授权管理 -->
       <div class="card auth-card" :class="{ 'card-dim': !cardMatch(['授权管理']) }">
@@ -159,7 +159,7 @@
     </div>
 
     <!-- 数据管理 -->
-    <p class="desc" style="padding-top: 18px;">备份或恢复应用设置。</p>
+    <p class="desc" style="padding-top: 8px;">备份或恢复应用设置。</p>
     <div class="card" :class="{ 'card-dim': !cardMatch(['数据管理']) }">
       <h3 class="card-title"><i data-lucide="database"></i> 数据管理</h3>
       <div class="row" style="gap: 10px; flex-wrap: wrap;">
@@ -186,7 +186,7 @@
     </div>
 
     <!-- 运行日志 -->
-    <p class="desc" style="padding-top: 18px;">查看操作过程、错误与提示。</p>
+    <p class="desc" style="padding-top: 8px;">查看操作过程、错误与提示。</p>
     <div class="card" :class="{ 'card-dim': !cardMatch(['运行日志']) }">
       <div class="row-spread" style="margin-bottom: 10px;">
         <h3 class="card-title" style="margin: 0;">

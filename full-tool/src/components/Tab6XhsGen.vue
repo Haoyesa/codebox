@@ -2789,7 +2789,7 @@ onBeforeUnmount(() => {
 /* ===== Header ===== */
 .xhs-gen-root .header {
   background: var(--xhs-header-bg);
-  padding: 18px 0;
+  padding: 10px 0;
   text-align: center;
   box-shadow: 0 4px 20px rgba(255,36,66,0.3);
   position: relative;
@@ -2857,7 +2857,7 @@ onBeforeUnmount(() => {
 .xhs-gen-root .main {
   display: flex;
   gap: 16px;
-  padding: 16px;
+  padding: 10px 16px;
   max-width: 1600px;
   margin: 0 auto;
   align-items: flex-start;

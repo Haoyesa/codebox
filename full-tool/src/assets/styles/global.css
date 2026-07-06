@@ -198,7 +198,7 @@ kbd {
    描述行
    ============================================================ */
 .desc {
-  padding: 14px 4px 16px;
+  padding: 4px 4px 10px;
   color: var(--text-2);
   font-size: 13px;
   line-height: 1.65;
