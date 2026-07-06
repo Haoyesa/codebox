@@ -20,13 +20,13 @@
 
     <div class="scn-grid">
       <!-- Canvas -->
-      <div class="canvas-wrap" ref="canvasWrap" @wheel.prevent="onWheel" @click.self="onCanvasClick">
-        <div class="canvas-empty" v-if="!baseImg" @click="pickBase">
+      <div ref="canvasWrap" class="canvas-wrap" @wheel.prevent="onWheel" @click.self="onCanvasClick">
+        <div v-if="!baseImg" class="canvas-empty" @click="pickBase">
           <i data-lucide="image"></i>
           <p class="drop-hint">上传背景图后开始场景化排版</p>
           <p class="drop-sub">点击或拖拽上传，支持 PNG / JPG / WebP</p>
         </div>
-        <div class="canvas-inner" v-show="baseImg" ref="canvasInner">
+        <div v-show="baseImg" ref="canvasInner" class="canvas-inner">
           <canvas ref="baseCanvas" class="base-canvas"></canvas>
           <canvas ref="overlayCanvas" class="overlay-canvas"></canvas>
           <div v-if="isLoadingBase" class="canvas-loading">
@@ -47,7 +47,7 @@
       <!-- Side panel -->
       <div class="card scn-side">
         <!-- Step 1 -->
-        <div class="group" v-if="step === 1">
+        <div v-if="step === 1" class="group">
           <h4>底图设置</h4>
           <div v-if="baseImg" class="base-info">
             <span class="tag tag-green">{{ baseName }}</span>
@@ -63,11 +63,11 @@
         </div>
 
         <!-- Step 2 -->
-        <div class="group" v-if="step === 2">
+        <div v-if="step === 2" class="group">
           <h4>叠图设置</h4>
 
           <!-- Overlay list -->
-          <div class="overlay-list" v-if="overlays.length > 0">
+          <div v-if="overlays.length > 0" class="overlay-list">
             <div
               v-for="ov in overlays"
               :key="ov.id"
@@ -76,7 +76,7 @@
             >
               <img :src="ov.dataUrl" class="overlay-thumb" alt="" />
               <span class="overlay-name" :title="ov.fileName">{{ ov.fileName }}</span>
-              <button class="overlay-delete" @click.stop="removeOverlay(ov.id)" title="删除叠图">
+              <button class="overlay-delete" title="删除叠图" @click.stop="removeOverlay(ov.id)">
                 <i data-lucide="x"></i>
               </button>
             </div>
@@ -94,7 +94,7 @@
               <span class="setting-label">不透明度</span>
               <span class="val">{{ activeOverlay.opacity }}%</span>
             </div>
-            <input type="range" v-model="activeOverlay.opacity" min="0" max="100" @input="renderOverlay">
+            <input v-model="activeOverlay.opacity" type="range" min="0" max="100" @input="renderOverlay">
 
             <div class="divider"></div>
             <div class="setting-row"><span class="setting-label">混合模式</span></div>
@@ -126,7 +126,7 @@
             <div class="setting-row">
               <span class="setting-label">透视变换</span>
               <label class="toggle">
-                <input type="checkbox" v-model="activeOverlay.perspective" @change="onPerspectiveModeChange">
+                <input v-model="activeOverlay.perspective" type="checkbox" @change="onPerspectiveModeChange">
                 <span class="slider"></span>
               </label>
             </div>
@@ -148,7 +148,7 @@
         </div>
 
         <!-- Step 3 -->
-        <div class="group" v-if="step === 3">
+        <div v-if="step === 3" class="group">
           <h4>导出设置</h4>
           <div class="setting-row"><span class="setting-label">输出格式</span></div>
           <div class="format-chips">
@@ -179,21 +179,21 @@
         </div>
 
         <!-- Tips -->
-        <div class="tip-card" style="margin-top:12px" v-if="step === 2 && activeOverlayId">
+        <div v-if="step === 2 && activeOverlayId" class="tip-card" style="margin-top:12px">
           <div class="tip-icon">i</div>
           <div class="tip-content">拖动四个角的圆点来定位叠图位置</div>
         </div>
       </div>
     </div>
 
-    <input type="file" ref="baseInput" accept="image/*" style="display:none" @change="onBaseFile">
-    <input type="file" ref="overlayInput" accept="image/*" multiple style="display:none" @change="onOverlayFile">
+    <input ref="baseInput" type="file" accept="image/*" style="display:none" @change="onBaseFile">
+    <input ref="overlayInput" type="file" accept="image/*" multiple style="display:none" @change="onOverlayFile">
   </section>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { Upload, Layers, Download, RefreshCcw, X, Image, FolderOutput } from 'lucide-vue-next';
+
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
 import { useUndoRedo } from '../composables/useUndoRedo.js';

@@ -121,3 +121,80 @@
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
 
 /* ImagePreview 暗色下已用 scoped 样式，toolbar 背景较深，无需额外适配 */
+
+/* ============================================================
+   硬编码颜色暗色覆盖（对应 global.css）
+   ============================================================ */
+
+/* .btn { background: #fff; } */
+[data-theme="dark"] .btn {
+  background: var(--panel);
+}
+
+/* .btn-secondary { background: #fff; } */
+[data-theme="dark"] .btn-secondary {
+  background: var(--panel);
+}
+
+/* .btn-primary inset 高光 */
+[data-theme="dark"] .btn-primary {
+  box-shadow: 0 2px 8px var(--primary-glow), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+/* .btn-warn / .btn-ok 硬编码色 */
+[data-theme="dark"] .btn-warn {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+[data-theme="dark"] .btn-warn:hover {
+  background: rgba(251, 191, 36, 0.15);
+}
+[data-theme="dark"] .btn-ok {
+  border-color: rgba(52, 211, 153, 0.35);
+}
+[data-theme="dark"] .btn-ok:hover {
+  background: rgba(52, 211, 153, 0.15);
+}
+
+/* 输入框 focus 背景 */
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  background: var(--panel);
+}
+
+/* Checkbox / Radio .box { background: #fff; } */
+[data-theme="dark"] .checkbox .box,
+[data-theme="dark"] .radio .box {
+  background: var(--panel);
+}
+
+/* 标签硬编码文字色 */
+[data-theme="dark"] .tag-cyan {
+  color: var(--neon-cyan);
+}
+[data-theme="dark"] .tag-magenta {
+  color: var(--neon-magenta);
+}
+
+/* Toast inset 高光 */
+[data-theme="dark"] .toast {
+  box-shadow: 0 8px 32px rgba(6, 214, 244, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+/* Range slider thumb 边框 */
+[data-theme="dark"] input[type=range]::-webkit-slider-thumb {
+  border-color: var(--bg);
+}
+[data-theme="dark"] input[type=range]::-moz-range-thumb {
+  border-color: var(--bg);
+}
+
+/* 玻璃面板 */
+[data-theme="dark"] .glass-panel {
+  background: rgba(21, 28, 40, 0.78);
+}
+
+/* 步骤导航 */
+[data-theme="dark"] .step-global {
+  background: var(--panel);
+}

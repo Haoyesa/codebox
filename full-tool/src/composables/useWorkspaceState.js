@@ -14,7 +14,7 @@ export function useWorkspaceState(tabId) {
         _t: Date.now(),
         data: stateObj
       }));
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
   }
 
   function restore() {
@@ -27,7 +27,7 @@ export function useWorkspaceState(tabId) {
   }
 
   function clear() {
-    try { localStorage.removeItem(key); } catch (_) {}
+    try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
   }
 
   return { save, restore, clear };

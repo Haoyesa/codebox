@@ -1,83 +1,261 @@
 <template>
   <div ref="editorContainer" class="highmd-editor-root" :class="$attrs.class">
-<header class="topbar">
-  <div class="brand"><div class="mark">H</div><div class="name">HighMD</div></div>
-  <div class="nav-group">
-    <button class="nav-btn" data-act="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>新建笔记</button>
-    <button class="nav-btn" data-act="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>导出</button>
-  </div>
-</header>
-<main class="workspace">
-  <aside class="pages-bar" id="pagesBar">
-    <div class="page-thumb active" data-page="0"><span>HighMD<br/>让表达更精炼</span></div>
-    <button class="page-add" id="addPage" title="添加页面"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-  </aside>
-  <section class="editor">
-    <div class="editor-card">
-      <div class="field-label"><span>标题</span><div style="display:flex;align-items:center;gap:8px;"><span class="label-info">显示</span><div class="toggle" id="titleToggle"></div></div></div>
-      <input class="title-input" id="titleInput" placeholder="在此输入标题" value="HighMD：把想法装进卡片，让表达更精炼" />
-    </div>
-    <div class="editor-card">
-      <div class="field-label"><span>正文</span><div style="display:flex;align-items:center;gap:8px;"><span class="label-info">自动分页 ①</span><div class="toggle" id="pageToggle"></div></div></div>
-      <div class="toolbar">
-        <button class="tb-btn" id="undoBtn" title="撤销 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></button>
-        <button class="tb-btn" id="redoBtn" title="重做 (Ctrl+Y)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg></button>
-        <div class="tb-sep"></div>
-        <button class="tb-btn" data-cmd="h1">H1</button>
-        <button class="tb-btn" data-cmd="h2">H2</button>
-        <button class="tb-btn" data-cmd="h3">H3</button>
-        <div class="tb-sep"></div>
-        <button class="tb-btn" id="emojiBtn" title="表情"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
-        <button class="tb-btn" id="imgBtn" title="插入图片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
-        <button class="tb-btn" id="markBtn" title="荧光标记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-6 6v3h3l6-6"/><path d="M22 5l-3-3-9 9 3 3 9-9z"/></svg></button>
-        <button class="tb-btn" id="downloadBtn" title="导出PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-        <label class="tb-check" title="html2canvas 模式：完整渲染富文本和图片（默认开启）"><input type="checkbox" v-model="useHtml2canvas" /> 富文本</label>
-        <div class="tb-spacer"></div>
-        <button class="tb-action" data-act="layout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>智能排版</button>
+    <header class="topbar">
+      <div class="brand"><div class="mark">H</div><div class="name">HighMD</div></div>
+      <div class="nav-group">
+        <button class="nav-btn" @click="toast.show('功能：新建笔记')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>新建笔记
+        </button>
+        <button class="nav-btn" @click="exportPNG(); setTimeout(() => toast.show('已生成卡片 PNG'), 100)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>导出
+        </button>
       </div>
-      <div class="editor-area" id="editorArea" contenteditable="true"></div>
-    </div>
-    <div class="import-grid" style="grid-template-columns:1fr;">
-      <button class="import-card" data-import="local"><div class="import-icon upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>导入 Markdown / 文本 / 图片</span></button>
-    </div>
-  </section>
-  <section class="preview">
-    <div class="preview-header">
-      <div class="left"><span>预览</span><span style="opacity:.4">·</span><span class="name" id="tplName">简单格子</span></div>
-      <div class="ratio-group">
-        <button class="ratio-btn" data-ratio="3-4">3:4</button>
-        <button class="ratio-btn active" data-ratio="3-5">3:5</button>
-      </div>
-    </div>
-    <div class="preview-frame r-3-5" id="previewFrame">
-      <div class="preview-stage tpl-default" id="previewStage">
-        <div class="tpl-card">
-          <span class="stars">✦ ✦ ✦</span>
-          <span class="badge" id="prevBadge">HighMD · 灵感笔记</span>
-          <h1 id="prevTitle">HighMD：把想法装进卡片，让表达更精炼</h1>
-          <div class="body" id="prevBody"></div>
-          <div class="footer"><span>HighMD</span><span id="prevPage">1/1</span></div>
+    </header>
+    <main class="workspace">
+      <aside class="pages-bar">
+        <div
+          v-for="(page, i) in pages"
+          :key="i"
+          class="page-thumb"
+          :class="{ active: i === currentPage }"
+          @click="switchPage(i)"
+        >
+          <span>{{ (page.title || `未命名 ${i + 1}`).slice(0, 14) }}</span>
         </div>
-      </div>
-    </div>
-    <div class="page-indicator" id="pageIndicator">1/1</div>
-  </section>
-  <aside class="template-lib">
-    <div class="lib-tabs">
-      <div class="lib-tab active" data-tab="tpl">模板库</div>
-      <div class="lib-tab" data-tab="adj">调整</div>
-    </div>
-    <div class="lib-content" id="libContent"></div>
-  </aside>
-</main>
+        <button class="page-add" title="添加页面" @click="addPage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </aside>
+      <section class="editor">
+        <div class="editor-card">
+          <div class="field-label">
+            <span>标题</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="label-info">显示</span>
+              <div class="toggle" :class="{ off: !showTitle }" @click="toggleShowTitle"></div>
+            </div>
+          </div>
+          <input class="title-input" placeholder="在此输入标题" v-model="titleValue" @input="onTitleInput" />
+        </div>
+        <div class="editor-card">
+          <div class="field-label">
+            <span>正文</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="label-info">自动分页 ①</span>
+              <div class="toggle" :class="{ off: !autoPage }" @click="toggleAutoPage"></div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="tb-btn" title="撤销 (Ctrl+Z)" @click="undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></button>
+            <button class="tb-btn" title="重做 (Ctrl+Y)" @click="redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg></button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" @mousedown.prevent="execCmd('formatBlock', 'H1')">H1</button>
+            <button class="tb-btn" @mousedown.prevent="execCmd('formatBlock', 'H2')">H2</button>
+            <button class="tb-btn" @mousedown.prevent="execCmd('formatBlock', 'H3')">H3</button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" title="表情" @click="insertEmoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+            <button class="tb-btn" title="插入图片" @click="fileInputRef?.click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
+            <button class="tb-btn" title="荧光标记" @click="insertMark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-6 6v3h3l6-6"/><path d="M22 5l-3-3-9 9 3 3 9-9z"/></svg></button>
+            <button class="tb-btn" title="导出PNG" @click="exportPNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+            <label class="tb-check" title="html2canvas 模式：完整渲染富文本和图片（默认开启）"><input type="checkbox" v-model="useHtml2canvas" /> 富文本</label>
+            <div class="tb-spacer"></div>
+            <button class="tb-action" @click="smartLayout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>智能排版</button>
+          </div>
+          <div class="editor-area" contenteditable="true" ref="editorAreaRef" @input="onEditorInput"></div>
+        </div>
+        <div class="import-grid" style="grid-template-columns:1fr;">
+          <button class="import-card" @click="fileInputRef?.click()">
+            <div class="import-icon upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+            <span>导入 Markdown / 文本 / 图片</span>
+          </button>
+        </div>
+      </section>
+      <section class="preview">
+        <div class="preview-header">
+          <div class="left"><span>预览</span><span style="opacity:.4">·</span><span class="name">{{ tplName }}</span></div>
+          <div class="ratio-group">
+            <button class="ratio-btn" :class="{ active: ratio === '3-4' }" @click="setRatio('3-4')">3:4</button>
+            <button class="ratio-btn" :class="{ active: ratio === '3-5' }" @click="setRatio('3-5')">3:5</button>
+          </div>
+        </div>
+        <div class="preview-frame" :class="'r-' + ratio" ref="previewFrameRef">
+          <div class="preview-stage" :class="currentTpl" :style="stageStyle" ref="previewStageRef">
+            <div class="tpl-card" :style="cardStyle">
+              <span class="stars">&#10022; &#10022; &#10022;</span>
+              <span class="badge">{{ badgeText }}</span>
+              <h1 :style="{ display: showTitle ? '' : 'none' }">{{ currentTitle }}</h1>
+              <div class="body" v-html="currentBody"></div>
+              <div class="footer"><span>HighMD</span><span>{{ pageIndicatorText }}</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="page-indicator">{{ pageIndicatorText }}</div>
+      </section>
+      <aside class="template-lib">
+        <div class="lib-tabs">
+          <div class="lib-tab" :class="{ active: activeLibTab === 'tpl' }" @click="activeLibTab = 'tpl'">模板库</div>
+          <div class="lib-tab" :class="{ active: activeLibTab === 'adj' }" @click="activeLibTab = 'adj'">调整</div>
+        </div>
+        <div class="lib-content">
+          <template v-if="activeLibTab === 'tpl'">
+            <div v-for="sec in sections" :key="sec.name" class="tpl-section">
+              <h4>{{ sec.name }}</h4>
+              <div class="tpl-row">
+                <div
+                  v-for="it in sec.items"
+                  :key="it.id"
+                  class="tpl-mini"
+                  :class="[it.cls, { active: currentTpl === it.id }]"
+                  @click="applyTemplate(it.id, it.cls, sec.name)"
+                  :title="it.name"
+                >
+                  <div class="mini-title">{{ it.text }}</div>
+                  <div class="mini-bar"></div>
+                  <div class="mini-bar" style="width:80%"></div>
+                  <div class="mini-bar" style="width:60%"></div>
+                  <div class="mini-bar" style="width:70%"></div>
+                  <div class="mini-bar" style="width:50%"></div>
+                  <div class="mini-footer"><span>HighMD</span><span>1/1</span></div>
+                </div>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="adj-panel">
+              <div class="adj-tabs">
+                <div class="adj-tab" :class="{ active: adjustScope === 'current' }" @click="adjustScope = 'current'">当前卡片(组)属性</div>
+                <div class="adj-tab" :class="{ active: adjustScope === 'global' }" @click="adjustScope = 'global'; toast.show('已切换到全局卡片属性')">全局卡片属性</div>
+              </div>
 
+              <div class="adj-row-2">
+                <div class="adj-mini-card" :class="{ active: adjustSection === 'full' }" @click="adjustSection = 'full'">
+                  <span class="adj-mini-icon">+</span>
+                  <span>全文设置</span>
+                </div>
+                <div class="adj-mini-card" :class="{ active: adjustSection === 'tpl' }" @click="adjustSection = 'tpl'">
+                  <span class="adj-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+                  <span>样式模版</span>
+                </div>
+              </div>
 
-    <input type="file" id="fileInput" accept="image/*,.md,.txt" hidden />
+              <div class="adj-section">
+                <div class="adj-section-head">
+                  <span>文字设置:</span>
+                  <button class="adj-reset" @click="resetTextSettings">&#x21BA; 恢复默认值</button>
+                </div>
+                <div class="adj-block">
+                  <div class="adj-field-label">标题:</div>
+                  <div class="size-group">
+                    <button v-for="sz in ['xs','sm','md','lg','xl']" :key="sz" class="size-btn" :class="{ active: settings.titleSize === sz }" @click="settings.titleSize = sz">{{ sizeLabelMap[sz] }}</button>
+                  </div>
+                  <div class="font-select-wrap">
+                    <select class="font-select" v-model="settings.titleFont">
+                      <option>平方</option>
+                      <option>思源黑体</option>
+                      <option>系统默认</option>
+                      <option>衬线</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="adj-block">
+                  <div class="adj-field-label">正文:</div>
+                  <div class="size-group">
+                    <button v-for="sz in ['xs','sm','md','lg','xl']" :key="sz" class="size-btn" :class="{ active: settings.bodySize === sz }" @click="settings.bodySize = sz">{{ sizeLabelMap[sz] }}</button>
+                  </div>
+                  <div class="font-select-wrap">
+                    <select class="font-select" v-model="settings.bodyFont">
+                      <option>平方</option>
+                      <option>思源黑体</option>
+                      <option>系统默认</option>
+                      <option>衬线</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="adj-section">
+                <div class="adj-section-head">
+                  <span>对齐与间距:</span>
+                  <button class="adj-reset" @click="resetSpacingSettings">&#x21BA; 恢复默认值</button>
+                </div>
+                <div class="adj-block">
+                  <div class="adj-row-flex">
+                    <div class="align-group">
+                      <button class="align-btn" :class="{ active: settings.bodyAlign === 'left' }" title="左对齐" @click="settings.bodyAlign = 'left'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+                      <button class="align-btn" :class="{ active: settings.bodyAlign === 'center' }" title="居中" @click="settings.bodyAlign = 'center'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+                      <button class="align-btn" :class="{ active: settings.bodyAlign === 'right' }" title="右对齐" @click="settings.bodyAlign = 'right'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+                      <button class="align-btn" :class="{ active: settings.bodyAlign === 'justify' }" title="两端对齐" @click="settings.bodyAlign = 'justify'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+                    </div>
+                    <div class="num-stepper">
+                      <span class="step-icon" title="行高">&#x2261;</span>
+                      <input type="number" v-model.number="settings.lineHeight" min="1" max="3" step="0.1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('lineHeight', 0.1, 1, 3, 1)">&#x25B4;</button><button class="step-down" @click="adjustSetting('lineHeight', -0.1, 1, 3, 1)">&#x25BE;</button></div>
+                    </div>
+                  </div>
+                  <div class="adj-row-flex">
+                    <div class="num-stepper">
+                      <span class="step-icon" title="段前距">&#x2191;</span>
+                      <input type="number" v-model.number="settings.marginTop" min="0" max="50" step="1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('marginTop', 1, 0, 50)">&#x25B4;</button><button class="step-down" @click="adjustSetting('marginTop', -1, 0, 50)">&#x25BE;</button></div>
+                    </div>
+                    <div class="num-stepper">
+                      <span class="step-icon" title="段后距">&#x2193;</span>
+                      <input type="number" v-model.number="settings.marginBottom" min="0" max="50" step="1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('marginBottom', 1, 0, 50)">&#x25B4;</button><button class="step-down" @click="adjustSetting('marginBottom', -1, 0, 50)">&#x25BE;</button></div>
+                    </div>
+                  </div>
+                  <div class="adj-row-flex">
+                    <div class="num-stepper">
+                      <span class="step-icon" title="左缩进">&#x2190;</span>
+                      <input type="number" v-model.number="settings.paddingLeft" min="0" max="50" step="1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('paddingLeft', 1, 0, 50)">&#x25B4;</button><button class="step-down" @click="adjustSetting('paddingLeft', -1, 0, 50)">&#x25BE;</button></div>
+                    </div>
+                    <div class="num-stepper">
+                      <span class="step-icon" title="右缩进">&#x2192;</span>
+                      <input type="number" v-model.number="settings.paddingRight" min="0" max="50" step="1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('paddingRight', 1, 0, 50)">&#x25B4;</button><button class="step-down" @click="adjustSetting('paddingRight', -1, 0, 50)">&#x25BE;</button></div>
+                    </div>
+                  </div>
+                  <div class="adj-row-flex">
+                    <div class="num-stepper">
+                      <span class="step-icon" title="首行缩进">&#x21B5;</span>
+                      <input type="number" v-model.number="settings.textIndent" min="0" max="50" step="1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('textIndent', 1, 0, 50)">&#x25B4;</button><button class="step-down" @click="adjustSetting('textIndent', -1, 0, 50)">&#x25BE;</button></div>
+                    </div>
+                    <div class="num-stepper">
+                      <span class="step-icon" title="字间距">&#x2195;</span>
+                      <input type="number" v-model.number="settings.lineSpacing" min="0" max="20" step="1" />
+                      <div class="step-arrows"><button class="step-up" @click="adjustSetting('lineSpacing', 1, 0, 20)">&#x25B4;</button><button class="step-down" @click="adjustSetting('lineSpacing', -1, 0, 20)">&#x25BE;</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="adj-section">
+                <div class="adj-section-head">
+                  <span>背景替换:</span>
+                  <span class="bg-actions">
+                    <button class="adj-link" @click="toast.show('请先上传图片再裁剪')">&#x29C9; 裁剪图片</button>
+                    <button class="adj-link" @click="resetBg">&#x21BA; 恢复默认背景</button>
+                  </span>
+                </div>
+                <div class="bg-upload">
+                  <button class="bg-upload-btn" @click="bgFileInputRef?.click()">&#x2191; 上传图片</button>
+                  <input type="file" ref="bgFileInputRef" accept="image/*" hidden @change="onBgFileChange" />
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </aside>
+    </main>
+
+    <input type="file" ref="fileInputRef" accept="image/*,.md,.txt" hidden @change="onFileChange" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useToast } from '../composables/useToast.js';
 import { useWorkspaceState } from '../composables/useWorkspaceState.js';
 import html2canvas from 'html2canvas';
@@ -87,498 +265,441 @@ const toast = useToast();
 const ws = useWorkspaceState('highmd');
 const useHtml2canvas = ref(true);
 
-onMounted(() => {
-  const container = editorContainer.value;
-  if (!container) return;
+// === DOM Refs ===
+const editorAreaRef = ref(null);
+const previewStageRef = ref(null);
+const previewFrameRef = ref(null);
+const fileInputRef = ref(null);
+const bgFileInputRef = ref(null);
 
-  function escapeHtml(str) {
-    if (typeof str !== 'string') return '';
-    const el = document.createElement('div');
-    el.textContent = str;
-    return el.innerHTML;
+// === 核心状态 ===
+const pages = ref([{ title: 'HighMD：把想法装进卡片，让表达更精炼', html: '' }]);
+const currentPage = ref(0);
+const showTitle = ref(true);
+const autoPage = ref(true);
+const ratio = ref('3-5');
+const currentTpl = ref('tpl-default');
+const tplName = ref('简单格子');
+const bgImage = ref('');
+const activeLibTab = ref('tpl');
+const adjustScope = ref('current');
+const adjustSection = ref('full');
+const titleValue = ref('HighMD：把想法装进卡片，让表达更精炼');
+
+const settings = ref({
+  titleSize: 'sm',
+  bodySize: 'sm',
+  titleFont: '平方',
+  bodyFont: '平方',
+  bodyAlign: 'left',
+  lineHeight: 1.8,
+  marginTop: 0,
+  marginBottom: 0,
+  paddingLeft: 0,
+  paddingRight: 0,
+  textIndent: 0,
+  lineSpacing: 0,
+});
+
+// === 模板库数据 ===
+const sections = [
+  { name: '简单格子', items: [{ id: 'tpl-default', cls: 'tpl-default', name: '白色简约', text: 'HighMD 让表达更精炼' }, { id: 'tpl-mint', cls: 'tpl-mint', name: '清新薄荷', text: 'HighMD 让表达更精炼' }, { id: 'tpl-peach', cls: 'tpl-peach', name: '蜜桃暖意', text: 'HighMD 让表达更精炼' }] },
+  { name: '智启新时代-日签版', items: [{ id: 'tpl-cream', cls: 'tpl-cream', name: '日签·米黄', text: 'DAY 06 智启' }, { id: 'tpl-amber', cls: 'tpl-amber', name: '日签·琥珀', text: 'DAY 06 智启' }, { id: 'tpl-sky', cls: 'tpl-sky', name: '日签·晴空', text: 'DAY 06 智启' }] },
+  { name: '智启新时代', items: [{ id: 'tpl-dark', cls: 'tpl-dark', name: '极简深色', text: '智启新时代' }, { id: 'tpl-lavender', cls: 'tpl-lavender', name: '知性紫调', text: '智启新时代' }, { id: 'tpl-rose', cls: 'tpl-rose', name: '玫瑰宣言', text: '智启新时代' }] },
+  { name: '咖啡慢生活', items: [{ id: 'tpl-coffee', cls: 'tpl-coffee', name: '晨光咖啡', text: '一杯咖啡 慢度时光' }, { id: 'tpl-pink', cls: 'tpl-pink', name: '玫瑰拿铁', text: '一杯咖啡 慢度时光' }, { id: 'tpl-mint2', cls: 'tpl-mint', name: '薄荷冰咖', text: '一杯咖啡 慢度时光' }] }
+];
+
+// === 常量映射 ===
+const sizeLabelMap = { xs: '最小', sm: '小', md: '中', lg: '大', xl: '最大' };
+const sizeMapTitle = { xs: '16px', sm: '21px', md: '26px', lg: '32px', xl: '40px' };
+const sizeMapBody = { xs: '11px', sm: '12.5px', md: '14px', lg: '16px', xl: '20px' };
+const fontMap = {
+  '平方': '-apple-system,"PingFang SC","Microsoft YaHei",sans-serif',
+  '思源黑体': '"Source Han Sans CN","Noto Sans SC",sans-serif',
+  '系统默认': '-apple-system,BlinkMacSystemFont,sans-serif',
+  '衬线': 'Georgia,"Times New Roman",serif'
+};
+
+// === Computed ===
+const currentTitle = computed(() => pages.value[currentPage.value]?.title || 'HighMD：把想法装进卡片，让表达更精炼');
+const currentBody = computed(() => pages.value[currentPage.value]?.html || '');
+const pageIndicatorText = computed(() => `${currentPage.value + 1}/${pages.value.length}`);
+
+const badgeText = computed(() => {
+  if (tplName.value.includes('日签')) return '日签 · DAY 06';
+  if (tplName.value.includes('咖啡')) return '一杯咖啡 · 慢度时光';
+  if (tplName.value.includes('智启')) return '智启 · 新时代';
+  return 'HighMD · 灵感笔记';
+});
+
+const cardStyle = computed(() => ({
+  '--title-size': sizeMapTitle[settings.value.titleSize] || '21px',
+  '--body-size': sizeMapBody[settings.value.bodySize] || '12.5px',
+  '--title-font': fontMap[settings.value.titleFont] || fontMap['平方'],
+  '--body-font': fontMap[settings.value.bodyFont] || fontMap['平方'],
+  '--body-align': settings.value.bodyAlign,
+  '--line-height': String(settings.value.lineHeight),
+  '--p-mt': settings.value.marginTop + 'px',
+  '--p-mb': settings.value.marginBottom + 'px',
+  '--p-pl': settings.value.paddingLeft + 'px',
+  '--p-pr': settings.value.paddingRight + 'px',
+  '--p-indent': settings.value.textIndent + 'px',
+  '--p-spacing': settings.value.lineSpacing + 'px',
+}));
+
+const stageStyle = computed(() => {
+  if (!bgImage.value) return {};
+  return {
+    backgroundImage: `url(${bgImage.value})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  };
+});
+
+// === 辅助函数 ===
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  const el = document.createElement('div');
+  el.textContent = str;
+  return el.innerHTML;
+}
+
+function switchPage(index) {
+  // 保存当前页状态
+  if (editorAreaRef.value) {
+    pages.value[currentPage.value].html = editorAreaRef.value.innerHTML;
   }
+  pages.value[currentPage.value].title = titleValue.value;
+  currentPage.value = index;
+  refreshPage();
+}
 
-const $=s=>container.querySelector(s);
-  const $$=s=>Array.from(Array.from(container.querySelectorAll(s)));
-  const state={pages:[{title:'HighMD：把想法装进卡片，让表达更精炼',html:''}],currentPage:0,showTitle:true,autoPage:true,ratio:'3-5',currentTpl:'tpl-default',tplName:'简单格子'};
-  const titleInput=$('#titleInput'),editorArea=$('#editorArea'),prevTitle=$('#prevTitle'),prevBody=$('#prevBody'),prevPage=$('#prevPage'),pageIndicator=$('#pageIndicator'),prevBadge=$('#prevBadge'),previewStage=$('#previewStage'),previewFrame=$('#previewFrame'),tplNameEl=$('#tplName'),libContent=$('#libContent'),toast=$('#toast'),pagesBar=$('#pagesBar');
-  const sections=[
-    {name:'简单格子',items:[{id:'tpl-default',cls:'tpl-default',name:'白色简约',text:'HighMD 让表达更精炼'},{id:'tpl-mint',cls:'tpl-mint',name:'清新薄荷',text:'HighMD 让表达更精炼'},{id:'tpl-peach',cls:'tpl-peach',name:'蜜桃暖意',text:'HighMD 让表达更精炼'}]},
-    {name:'智启新时代-日签版',items:[{id:'tpl-cream',cls:'tpl-cream',name:'日签·米黄',text:'DAY 06 智启'},{id:'tpl-amber',cls:'tpl-amber',name:'日签·琥珀',text:'DAY 06 智启'},{id:'tpl-sky',cls:'tpl-sky',name:'日签·晴空',text:'DAY 06 智启'}]},
-    {name:'智启新时代',items:[{id:'tpl-dark',cls:'tpl-dark',name:'极简深色',text:'智启新时代'},{id:'tpl-lavender',cls:'tpl-lavender',name:'知性紫调',text:'智启新时代'},{id:'tpl-rose',cls:'tpl-rose',name:'玫瑰宣言',text:'智启新时代'}]},
-    {name:'咖啡慢生活',items:[{id:'tpl-coffee',cls:'tpl-coffee',name:'晨光咖啡',text:'一杯咖啡 慢度时光'},{id:'tpl-pink',cls:'tpl-pink',name:'玫瑰拿铁',text:'一杯咖啡 慢度时光'},{id:'tpl-mint2',cls:'tpl-mint',name:'薄荷冰咖',text:'一杯咖啡 慢度时光'}]}
-  ];
-  function renderLibrary(){
-    libContent.innerHTML=sections.map(sec=>'<div class="tpl-section"><h4>'+sec.name+'</h4><div class="tpl-row">'+sec.items.map(it=>'<div class="tpl-mini '+it.cls+(state.currentTpl===it.id?' active':'')+'" data-tpl="'+it.id+'" data-cls="'+it.cls+'" data-section="'+sec.name+'" data-text="'+it.text+'" title="'+it.name+'"><div class="mini-title">'+it.text+'</div><div class="mini-bar"></div><div class="mini-bar" style="width:80%"></div><div class="mini-bar" style="width:60%"></div><div class="mini-bar" style="width:70%"></div><div class="mini-bar" style="width:50%"></div><div class="mini-footer"><span>HighMD</span><span>1/1</span></div></div>').join('')+'</div></div>').join('');
+function refreshPage() {
+  const p = pages.value[currentPage.value];
+  titleValue.value = p.title || '';
+  if (editorAreaRef.value) {
+    editorAreaRef.value.innerHTML = p.html || '';
   }
-  function renderAdjust(){
-    libContent.innerHTML = `
-      <div class="adj-panel">
-        <div class="adj-tabs">
-          <div class="adj-tab active" data-scope="current">当前卡片(组)属性</div>
-          <div class="adj-tab" data-scope="global">全局卡片属性</div>
-        </div>
+}
 
-        <div class="adj-row-2">
-          <div class="adj-mini-card active" data-section="full">
-            <span class="adj-mini-icon">+</span>
-            <span>全文设置</span>
-          </div>
-          <div class="adj-mini-card" data-section="tpl">
-            <span class="adj-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-            <span>样式模版</span>
-          </div>
-        </div>
-
-        <div class="adj-section">
-          <div class="adj-section-head">
-            <span>文字设置:</span>
-            <button class="adj-reset" data-reset="text">\u21BA 恢复默认值</button>
-          </div>
-          <div class="adj-block">
-            <div class="adj-field-label">标题:</div>
-            <div class="size-group" data-target="title">
-              <button class="size-btn" data-size="xs">最小</button>
-              <button class="size-btn active" data-size="sm">小</button>
-              <button class="size-btn" data-size="md">中</button>
-              <button class="size-btn" data-size="lg">大</button>
-              <button class="size-btn" data-size="xl">最大</button>
-            </div>
-            <div class="font-select-wrap">
-              <select class="font-select" data-target="title">
-                <option>平方</option>
-                <option>思源黑体</option>
-                <option>系统默认</option>
-                <option>衬线</option>
-              </select>
-            </div>
-          </div>
-          <div class="adj-block">
-            <div class="adj-field-label">正文:</div>
-            <div class="size-group" data-target="body">
-              <button class="size-btn" data-size="xs">最小</button>
-              <button class="size-btn active" data-size="sm">小</button>
-              <button class="size-btn" data-size="md">中</button>
-              <button class="size-btn" data-size="lg">大</button>
-              <button class="size-btn" data-size="xl">最大</button>
-            </div>
-            <div class="font-select-wrap">
-              <select class="font-select" data-target="body">
-                <option>平方</option>
-                <option>思源黑体</option>
-                <option>系统默认</option>
-                <option>衬线</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="adj-section">
-          <div class="adj-section-head">
-            <span>对齐与间距:</span>
-            <button class="adj-reset" data-reset="spacing">\u21BA 恢复默认值</button>
-          </div>
-          <div class="adj-block">
-            <div class="adj-row-flex">
-              <div class="align-group" data-target="align">
-                <button class="align-btn active" data-align="left" title="左对齐"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
-                <button class="align-btn" data-align="center" title="居中"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
-                <button class="align-btn" data-align="right" title="右对齐"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
-                <button class="align-btn" data-align="justify" title="两端对齐"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-              </div>
-              <div class="num-stepper" data-target="lineHeight">
-                <span class="step-icon" title="行高">\u2261</span>
-                <input type="number" value="1.8" min="1" max="3" step="0.1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-            </div>
-            <div class="adj-row-flex">
-              <div class="num-stepper" data-target="marginTop">
-                <span class="step-icon" title="段前距">\u2191</span>
-                <input type="number" value="0" min="0" max="50" step="1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-              <div class="num-stepper" data-target="marginBottom">
-                <span class="step-icon" title="段后距">\u2193</span>
-                <input type="number" value="0" min="0" max="50" step="1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-            </div>
-            <div class="adj-row-flex">
-              <div class="num-stepper" data-target="paddingLeft">
-                <span class="step-icon" title="左缩进">\u2190</span>
-                <input type="number" value="0" min="0" max="50" step="1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-              <div class="num-stepper" data-target="paddingRight">
-                <span class="step-icon" title="右缩进">\u2192</span>
-                <input type="number" value="0" min="0" max="50" step="1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-            </div>
-            <div class="adj-row-flex">
-              <div class="num-stepper" data-target="textIndent">
-                <span class="step-icon" title="首行缩进">\u21B5</span>
-                <input type="number" value="0" min="0" max="50" step="1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-              <div class="num-stepper" data-target="lineSpacing">
-                <span class="step-icon" title="字间距">\u2195</span>
-                <input type="number" value="0" min="0" max="20" step="1" />
-                <div class="step-arrows"><button class="step-up">\u25B4</button><button class="step-down">\u25BE</button></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="adj-section">
-          <div class="adj-section-head">
-            <span>背景替换:</span>
-            <span class="bg-actions">
-              <button class="adj-link" data-act="crop">\u29C9 裁剪图片</button>
-              <button class="adj-link" data-act="resetbg">\u21BA 恢复默认背景</button>
-            </span>
-          </div>
-          <div class="bg-upload">
-            <button class="bg-upload-btn" id="bgUploadBtn">\u2191 上传图片</button>
-            <input type="file" id="bgFileInput" accept="image/*" hidden />
-          </div>
-        </div>
-      </div>
-    `;
-    bindAdjust();
+function addPage() {
+  // 保存当前页
+  if (editorAreaRef.value) {
+    pages.value[currentPage.value].html = editorAreaRef.value.innerHTML;
   }
+  pages.value[currentPage.value].title = titleValue.value;
+  pages.value.push({ title: `新页面 ${pages.value.length + 1}`, html: '' });
+  currentPage.value = pages.value.length - 1;
+  refreshPage();
+  toast.show('已添加新页面');
+}
 
-  function bindAdjust(){
-    const stage = $('#previewStage');
-    const card = stage.querySelector('.tpl-card');
+function applyTemplate(id, cls, name) {
+  currentTpl.value = id;
+  tplName.value = name;
+}
 
-    $$('.size-group').forEach(group => {
-      const target = group.dataset.target;
-      const prop = target === 'title' ? '--title-size' : '--body-size';
-      const sizeMap = {
-        title: { xs:'16px', sm:'21px', md:'26px', lg:'32px', xl:'40px' },
-        body:  { xs:'11px', sm:'12.5px', md:'14px', lg:'16px', xl:'20px' }
-      };
-      group.querySelectorAll('.size-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          card.style.setProperty(prop, sizeMap[target][btn.dataset.size]);
-          group.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-        });
-      });
-    });
+function setRatio(r) {
+  ratio.value = r;
+}
 
-    $$('.font-select').forEach(sel => {
-      sel.addEventListener('change', () => {
-        const target = sel.dataset.target;
-        const prop = target === 'title' ? '--title-font' : '--body-font';
-        const fontMap = {
-          '\u5e73\u65b9':'-apple-system,"PingFang SC","Microsoft YaHei",sans-serif',
-          '\u601d\u6e90\u9ed1\u4f53':'"Source Han Sans CN","Noto Sans SC",sans-serif',
-          '\u7cfb\u7edf\u9ed8\u8ba4':'-apple-system,BlinkMacSystemFont,sans-serif',
-          '\u886c\u7ebf':'Georgia,"Times New Roman",serif'
-        };
-        card.style.setProperty(prop, fontMap[sel.value] || fontMap['\u5e73\u65b9']);
-      });
-    });
+function toggleShowTitle() {
+  showTitle.value = !showTitle.value;
+}
 
-    $$('.align-group').forEach(group => {
-      group.querySelectorAll('.align-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          card.style.setProperty('--body-align', btn.dataset.align);
-          group.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-        });
-      });
-    });
+function toggleAutoPage() {
+  autoPage.value = !autoPage.value;
+  toast.show(autoPage.value ? '已开启自动分页' : '已关闭自动分页');
+}
 
-    const propMap = {
-      lineHeight:'--line-height', marginTop:'--p-mt', marginBottom:'--p-mb',
-      paddingLeft:'--p-pl', paddingRight:'--p-pr', textIndent:'--p-indent',
-      lineSpacing:'--p-spacing'
+function execCmd(command, value = null) {
+  const el = editorAreaRef.value;
+  if (!el) return;
+  document.execCommand(command, false, value);
+  el.dispatchEvent(new Event('input'));
+}
+
+function onEditorInput() {
+  const html = editorAreaRef.value?.innerHTML || '';
+  pages.value[currentPage.value].html = html;
+}
+
+function onTitleInput() {
+  pages.value[currentPage.value].title = titleValue.value;
+}
+
+function insertEmoji() {
+  const em = ['😊', '✨', '🎉', '💡', '📌', '🚀', '🌈', '☕', '🌸', '🔥', '👍', '💪', '🌟', '🍀', '🎯', '✏️'];
+  const c = em[Math.floor(Math.random() * em.length)];
+  document.execCommand('insertText', false, c);
+  editorAreaRef.value?.dispatchEvent(new Event('input'));
+}
+
+function insertMark() {
+  document.execCommand('hiliteColor', false, '#fff3a3');
+  toast.show('已开启荧光笔');
+}
+
+function undo() {
+  document.execCommand('undo');
+  editorAreaRef.value?.dispatchEvent(new Event('input'));
+}
+
+function redo() {
+  document.execCommand('redo');
+  editorAreaRef.value?.dispatchEvent(new Event('input'));
+}
+
+function smartLayout() {
+  const el = editorAreaRef.value;
+  if (!el) return;
+  const lines = (el.innerText || '').split(/\n+/).filter(Boolean);
+  if (lines.length > 1) {
+    el.innerHTML = lines.map(l => l.length > 30 ? `<h2>${escapeHtml(l)}</h2><p>` : `<p>${escapeHtml(l)}</p>`).join('');
+    el.dispatchEvent(new Event('input'));
+    toast.show('已应用智能排版');
+  } else {
+    toast.show('正文较短，无需排版');
+  }
+}
+
+function onFileChange(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.type.startsWith('image/')) {
+    const r = new FileReader();
+    r.onload = ev => {
+      const img = `<img src="${ev.target.result}" style="max-width:100%;border-radius:6px;margin:6px 0;">`;
+      document.execCommand('insertHTML', false, img);
+      editorAreaRef.value?.dispatchEvent(new Event('input'));
+      toast.show('已插入图片');
     };
-    $$('.num-stepper').forEach(stepper => {
-      const target = stepper.dataset.target;
-      const prop = propMap[target];
-      const input = stepper.querySelector('input');
-      const decimals = (input.step && input.step.includes('.')) ? input.step.split('.')[1].length : 0;
-      const apply = () => {
-        const v = parseFloat(input.value);
-        if (isNaN(v)) return;
-        let suffix = 'px';
-        if (target === 'lineHeight') suffix = '';
-        card.style.setProperty(prop, v + suffix);
-      };
-      const setVal = (v) => {
-        const f = Math.pow(10, decimals);
-        input.value = String(Math.round(v * f) / f);
-        apply();
-      };
-      input.addEventListener('input', apply);
-      input.addEventListener('blur', () => { if (decimals > 0) setVal(parseFloat(input.value) || 0); });
-      stepper.querySelector('.step-up').addEventListener('click', () => {
-        const step = parseFloat(input.step) || 1;
-        setVal((parseFloat(input.value) || 0) + step);
-      });
-      stepper.querySelector('.step-down').addEventListener('click', () => {
-        const step = parseFloat(input.step) || 1;
-        setVal((parseFloat(input.value) || 0) - step);
-      });
-    });
+    r.readAsDataURL(f);
+  } else {
+    const r = new FileReader();
+    r.onload = ev => {
+      const html = '<p>' + escapeHtml(ev.target.result || '').replace(/\n/g, '</p><p>') + '</p>';
+      if (editorAreaRef.value) {
+        editorAreaRef.value.innerHTML = html;
+        editorAreaRef.value.dispatchEvent(new Event('input'));
+      }
+      toast.show('已导入 ' + f.name);
+    };
+    r.readAsText(f);
+  }
+  e.target.value = '';
+}
 
-    $$('.adj-reset').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const kind = btn.dataset.reset;
-        if (kind === 'text') {
-          ['--title-size','--body-size','--title-font','--body-font'].forEach(p => card.style.removeProperty(p));
-          $$('.size-btn').forEach(b => b.classList.remove('active'));
-          $$('.size-btn[data-size="sm"]').forEach(b => b.classList.add('active'));
-          $$('.font-select').forEach(s => s.selectedIndex = 0);
-          toast.show('文字已恢复默认');
-        } else if (kind === 'spacing') {
-          ['--body-align','--line-height','--p-mt','--p-mb','--p-pl','--p-pr','--p-indent','--p-spacing'].forEach(p => card.style.removeProperty(p));
-          $$('.align-btn').forEach(b => b.classList.remove('active'));
-          $$('.align-btn[data-align="left"]').forEach(b => b.classList.add('active'));
-          const defaults = { lineHeight:'1.8', marginTop:0, marginBottom:0, paddingLeft:0, paddingRight:0, textIndent:0, lineSpacing:0 };
-          $$('.num-stepper').forEach(s => { const t = s.dataset.target; if (defaults[t] !== undefined) s.querySelector('input').value = defaults[t]; });
-          toast.show('间距已恢复默认');
-        }
-      });
-    });
+function onBgFileChange(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    bgImage.value = ev.target.result;
+    toast.show('已替换背景');
+  };
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
 
-    $$('.adj-tab').forEach(t => {
-      t.addEventListener('click', () => {
-        $$('.adj-tab').forEach(x => x.classList.remove('active'));
-        t.classList.add('active');
-        if (t.dataset.scope === 'global') toast.show('已切换到全局卡片属性');
-      });
-    });
+function resetBg() {
+  bgImage.value = '';
+  toast.show('已恢复默认背景');
+}
 
-    $$('.adj-mini-card').forEach(c => {
-      c.addEventListener('click', () => {
-        $$('.adj-mini-card').forEach(x => x.classList.remove('active'));
-        c.classList.add('active');
-      });
-    });
+function adjustSetting(key, delta, min, max, decimals = 0) {
+  let v = settings.value[key] + delta;
+  if (min !== undefined) v = Math.max(min, v);
+  if (max !== undefined) v = Math.min(max, v);
+  if (decimals > 0) {
+    const f = Math.pow(10, decimals);
+    v = Math.round(v * f) / f;
+  }
+  settings.value[key] = v;
+}
 
-    const cropBtn = libContent.querySelector('[data-act="crop"]');
-    if (cropBtn) cropBtn.addEventListener('click', () => toast.show('\u8bf7\u5148\u4e0a\u4f20\u56fe\u7247\u518d\u88c1\u526a'));
-    const resetBgBtn = libContent.querySelector('[data-act="resetbg"]');
-    if (resetBgBtn) resetBgBtn.addEventListener('click', () => {
-      stage.style.backgroundImage = '';
-      stage.style.backgroundSize = '';
-      stage.style.backgroundPosition = '';
-      toast.show('\u5df2\u6062\u590d\u9ed8\u8ba4\u80cc\u666f');
-    });
+function resetTextSettings() {
+  settings.value.titleSize = 'sm';
+  settings.value.bodySize = 'sm';
+  settings.value.titleFont = '平方';
+  settings.value.bodyFont = '平方';
+  toast.show('文字已恢复默认');
+}
 
-    const bgBtn = $('#bgUploadBtn');
-    const bgInput = $('#bgFileInput');
-    if (bgBtn && bgInput) {
-      bgBtn.addEventListener('click', () => bgInput.click());
-      bgInput.addEventListener('change', e => {
-        const f = e.target.files[0]; if (!f) return;
-        const r = new FileReader();
-        r.onload = ev => {
-          stage.style.backgroundImage = 'url(' + ev.target.result + ')';
-          stage.style.backgroundSize = 'cover';
-          stage.style.backgroundPosition = 'center';
-          toast.show('\u5df2\u66ff\u6362\u80cc\u666f');
-        };
-        r.readAsDataURL(f);
-        e.target.value = '';
-      });
+function resetSpacingSettings() {
+  settings.value.bodyAlign = 'left';
+  settings.value.lineHeight = 1.8;
+  settings.value.marginTop = 0;
+  settings.value.marginBottom = 0;
+  settings.value.paddingLeft = 0;
+  settings.value.paddingRight = 0;
+  settings.value.textIndent = 0;
+  settings.value.lineSpacing = 0;
+  toast.show('间距已恢复默认');
+}
+
+function exportPNG() {
+  const node = previewFrameRef.value;
+  if (!node) return;
+  const w = node.offsetWidth, h = node.offsetHeight, scale = 2;
+
+  if (useHtml2canvas.value) {
+    const stage = previewStageRef.value;
+    const bgColor = getComputedStyle(document.body).backgroundColor;
+    html2canvas(stage, { backgroundColor: bgColor, scale: 2 }).then(canvas => {
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = 'HighMD-' + Date.now() + '.png';
+        link.href = url;
+        link.click();
+        window.open(url, '_blank');
+        toast.show('已导出卡片 PNG');
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }, 'image/png');
+    }).catch(err => {
+      toast.show('导出失败，请重试');
+      console.error('html2canvas error:', err);
+    });
+    return;
+  }
+
+  // 手动绘制路径（原有逻辑）
+  const canvas = document.createElement('canvas');
+  canvas.width = w * scale;
+  canvas.height = h * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  const stage = previewStageRef.value;
+  const bg = getComputedStyle(stage).backgroundColor;
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = getComputedStyle(stage).color;
+  ctx.textBaseline = 'top';
+  const padL = 22, padR = 22, padT = 28, innerW = w - padL - padR;
+  const titleEl = stage.querySelector('h1');
+  const bodyEl = stage.querySelector('.body');
+  const badgeEl = stage.querySelector('.badge');
+  const footerEl = stage.querySelector('.footer');
+  const family = getComputedStyle(stage).fontFamily;
+  let y = padT;
+  if (badgeEl) {
+    ctx.font = '600 10px ' + family;
+    const txt = badgeEl.textContent;
+    const tw = ctx.measureText(txt).width + 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(padL, y, tw, 16);
+    ctx.fillStyle = getComputedStyle(stage).color;
+    ctx.fillText(txt, padL + 7, y + 3);
+    y += 28;
+  }
+  if (titleEl) {
+    ctx.font = '800 21px ' + family;
+    wrapText(ctx, titleEl.textContent, innerW).forEach(line => {
+      ctx.fillText(line, padL, y);
+      y += 28;
+    });
+    y += 8;
+  }
+  if (bodyEl) {
+    ctx.font = '12.5px ' + family;
+    const bodyLines = wrapText(ctx, bodyEl.innerText || '', innerW);
+    const maxLines = Math.floor((h - y - 30) / 22);
+    bodyLines.slice(0, maxLines).forEach(line => {
+      ctx.fillText(line, padL, y);
+      y += 22;
+    });
+  }
+  if (footerEl) {
+    ctx.font = '10px ' + family;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    const footText = (footerEl.textContent || '').replace(/\s+/g, ' ').trim();
+    const fparts = footText.split(/\s+/);
+    ctx.fillText(fparts[0] || '', padL, h - 22);
+    if (fparts.length > 1) {
+      const last = fparts[fparts.length - 1];
+      ctx.fillText(last, w - padR - ctx.measureText(last).width, h - 22);
     }
   }
-  function applyTemplate(id,cls,name){
-    state.currentTpl=id;state.tplName=name;tplNameEl.textContent=name;previewStage.className='preview-stage '+cls;prevBadge.textContent=(name.indexOf('日签')>-1?'日签 · DAY 06':name.indexOf('咖啡')>-1?'一杯咖啡 · 慢度时光':name.indexOf('智启')>-1?'智启 · 新时代':'HighMD · 灵感笔记');$$('.tpl-mini').forEach(m=>m.classList.remove('active'));const t=container.querySelector('.tpl-mini[data-tpl="'+id+'"]');if(t)t.classList.add('active');
-  }
-  renderLibrary();applyTemplate('tpl-default','tpl-default','简单格子');
-  libContent.addEventListener('click',e=>{const t=e.target.closest('.tpl-mini');if(!t)return;applyTemplate(t.dataset.tpl,t.dataset.cls,t.dataset.section);toast.show('已应用：'+t.title);});
-  $$('.lib-tab').forEach(t=>t.addEventListener('click',()=>{$$('.lib-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');if(t.dataset.tab==='adj')renderAdjust();else renderLibrary();}));
-  titleInput.addEventListener('input',()=>{state.pages[state.currentPage].title=titleInput.value;prevTitle.textContent=titleInput.value||'HighMD：把想法装进卡片，让表达更精炼';updateThumb();});
-  editorArea.addEventListener('input',()=>{state.pages[state.currentPage].html=editorArea.innerHTML;prevBody.innerHTML=editorArea.innerHTML;});
-  $('#titleToggle').addEventListener('click',e=>{state.showTitle=!state.showTitle;e.currentTarget.classList.toggle('off',!state.showTitle);prevTitle.style.display=state.showTitle?'':'none';});
-  $('#pageToggle').addEventListener('click',e=>{state.autoPage=!state.autoPage;e.currentTarget.classList.toggle('off',!state.autoPage);toast.show(state.autoPage?'已开启自动分页':'已关闭自动分页');});
-  $$('.ratio-btn').forEach(btn=>btn.addEventListener('click',()=>{$$('.ratio-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');state.ratio=btn.dataset.ratio;previewFrame.classList.toggle('r-3-4',state.ratio==='3-4');}));
-  $$('.tb-btn[data-cmd]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();document.execCommand('formatBlock',false,btn.dataset.cmd.toUpperCase());editorArea.dispatchEvent(new Event('input'));}));
-  $('#emojiBtn').addEventListener('click',()=>{const em=['😊','✨','🎉','💡','📌','🚀','🌈','☕','🌸','🔥','👍','💪','🌟','🍀','🎯','✏️'];const c=em[Math.floor(Math.random()*em.length)];document.execCommand('insertText',false,c);editorArea.dispatchEvent(new Event('input'));});
-  $('#imgBtn').addEventListener('click',()=>$('#fileInput').click());
-  $('#fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(f.type.startsWith('image/')){const r=new FileReader();r.onload=ev=>{const img='<img src="'+ev.target.result+'" style="max-width:100%;border-radius:6px;margin:6px 0;">';document.execCommand('insertHTML',false,img);editorArea.dispatchEvent(new Event('input'));toast.show('已插入图片');};r.readAsDataURL(f);}else{const r=new FileReader();r.onload=ev=>{editorArea.innerHTML='<p>'+escapeHtml(ev.target.result||'').replace(/\n/g,'</p><p>')+'</p>';editorArea.dispatchEvent(new Event('input'));toast.show('已导入 '+f.name);};r.readAsText(f);}e.target.value='';});
-  $('#markBtn').addEventListener('click',()=>{document.execCommand('hiliteColor',false,'#fff3a3');toast.show('已开启荧光笔');});
-  $('#downloadBtn').addEventListener('click',exportPNG);
-  $('#undoBtn').addEventListener('click',()=>{document.execCommand('undo');editorArea.dispatchEvent(new Event('input'));});
-  $('#redoBtn').addEventListener('click',()=>{document.execCommand('redo');editorArea.dispatchEvent(new Event('input'));});
-  function renderPages(){const add=$('#addPage');pagesBar.innerHTML='';state.pages.forEach((p,i)=>{const t=document.createElement('div');t.className='page-thumb'+(i===state.currentPage?' active':'');t.dataset.page=i;const txt=(p.title||('未命名 '+(i+1))).slice(0,14);t.innerHTML='<span>'+escapeHtml(txt).replace(/[\r\n]/g,'<br>')+'</span>';t.addEventListener('click',()=>{state.currentPage=i;refreshPage();renderPages();});pagesBar.appendChild(t);});pagesBar.appendChild(add);}
-  function updateThumb(){const t=pagesBar.querySelector('.page-thumb[data-page="'+state.currentPage+'"]');if(t){const tx=state.pages[state.currentPage].title||'未命名';t.innerHTML='<span>'+escapeHtml(tx.slice(0,14)).replace(/[\r\n]/g,'<br>')+'</span>';}}
-  function refreshPage(){const p=state.pages[state.currentPage];titleInput.value=p.title;editorArea.innerHTML=p.html||'';prevTitle.textContent=p.title||'HighMD：把想法装进卡片，让表达更精炼';prevBody.innerHTML=p.html||'';prevTitle.style.display=state.showTitle?'':'none';}
-  $('#addPage').addEventListener('click',()=>{state.pages.push({title:'新页面 '+(state.pages.length+1),html:''});state.currentPage=state.pages.length-1;refreshPage();renderPages();toast.show('已添加新页面');});
-  $$('.import-card').forEach(c=>c.addEventListener('click',()=>{if(c.dataset.import==='local'){$('#fileInput').click();}}));
-  $$('.nav-btn').forEach(b=>b.addEventListener('click',()=>{const t=b.textContent.trim();if(t.indexOf('导出')>-1){exportPNG();setTimeout(()=>toast.show('已生成卡片 PNG'),100);}else{toast.show('功能：'+t);}}));
-  $$('.tb-action').forEach(a=>a.addEventListener('click',()=>{if(a.dataset.act==='layout'){const lines=(editorArea.innerText||'').split(/\n+/).filter(Boolean);if(lines.length>1){editorArea.innerHTML=lines.map(l=>l.length>30?'<h2>'+escapeHtml(l)+'</h2><p>':'<p>'+escapeHtml(l)+'</p>').join('');editorArea.dispatchEvent(new Event('input'));toast.show('已应用智能排版');}else{toast.show('正文较短，无需排版');}}}));
-  function exportPNG() {
-    const node = $('#previewFrame');
-    const w = node.offsetWidth, h = node.offsetHeight, scale = 2;
+  const link = document.createElement('a');
+  link.download = 'HighMD-' + Date.now() + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  toast.show('已导出卡片 PNG');
+}
 
-    if (useHtml2canvas.value) {
-      // html2canvas 路径：完整渲染富文本、嵌入图片、背景图片
-      const stage = node.querySelector('.preview-stage');
-      const bgColor = getComputedStyle(document.body).backgroundColor;
-      html2canvas(stage, { backgroundColor: bgColor, scale: 2 }).then(canvas => {
-        canvas.toBlob(blob => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.download = 'HighMD-' + Date.now() + '.png';
-          link.href = url;
-          link.click();
-          // 打开图片预览
-          window.open(url, '_blank');
-          toast.show('已导出卡片 PNG');
-          // 延迟释放 blob URL
-          setTimeout(() => URL.revokeObjectURL(url), 5000);
-        }, 'image/png');
-      }).catch(err => {
-        toast.show('导出失败，请重试');
-        logger.error('html2canvas error:', err);
-      });
+function wrapText(ctx, text, maxWidth) {
+  const out = [];
+  (text || '').split(/\n/).forEach(line => {
+    if (!line.trim()) {
+      out.push('');
       return;
     }
-
-    // 手动绘制路径（原有逻辑）
-    const canvas = document.createElement('canvas');
-    canvas.width = w * scale;
-    canvas.height = h * scale;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
-    const stage = node.querySelector('.preview-stage');
-    const bg = getComputedStyle(stage).backgroundColor;
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = getComputedStyle(stage).color;
-    ctx.textBaseline = 'top';
-    const padL = 22, padR = 22, padT = 28, innerW = w - padL - padR;
-    const titleEl = stage.querySelector('h1');
-    const bodyEl = stage.querySelector('.body');
-    const badgeEl = stage.querySelector('.badge');
-    const footerEl = stage.querySelector('.footer');
-    const family = getComputedStyle(stage).fontFamily;
-    let y = padT;
-    if (badgeEl) {
-      ctx.font = '600 10px ' + family;
-      const txt = badgeEl.textContent;
-      const tw = ctx.measureText(txt).width + 14;
-      ctx.fillStyle = 'rgba(0,0,0,0.08)';
-      ctx.fillRect(padL, y, tw, 16);
-      ctx.fillStyle = getComputedStyle(stage).color;
-      ctx.fillText(txt, padL + 7, y + 3);
-      y += 28;
-    }
-    if (titleEl) {
-      ctx.font = '800 21px ' + family;
-      wrapText(ctx, titleEl.textContent, innerW).forEach(line => {
-        ctx.fillText(line, padL, y);
-        y += 28;
-      });
-      y += 8;
-    }
-    if (bodyEl) {
-      ctx.font = '12.5px ' + family;
-      const bodyLines = wrapText(ctx, bodyEl.innerText || '', innerW);
-      const maxLines = Math.floor((h - y - 30) / 22);
-      bodyLines.slice(0, maxLines).forEach(line => {
-        ctx.fillText(line, padL, y);
-        y += 22;
-      });
-    }
-    if (footerEl) {
-      ctx.font = '10px ' + family;
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      const footText = (footerEl.textContent || '').replace(/\s+/g, ' ').trim();
-      const fparts = footText.split(/\s+/);
-      ctx.fillText(fparts[0] || '', padL, h - 22);
-      if (fparts.length > 1) {
-        const last = fparts[fparts.length - 1];
-        ctx.fillText(last, w - padR - ctx.measureText(last).width, h - 22);
+    let cur = '';
+    for (const ch of line) {
+      if (ctx.measureText(cur + ch).width > maxWidth && cur) {
+        out.push(cur);
+        cur = ch;
+      } else {
+        cur += ch;
       }
     }
-    const link = document.createElement('a');
-    link.download = 'HighMD-' + Date.now() + '.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    toast.show('已导出卡片 PNG');
-  }
-  function wrapText(ctx,text,maxWidth){const out=[];(text||'').split(/\n/).forEach(line=>{if(!line.trim()){out.push('');return;}let cur='';for(const ch of line){if(ctx.measureText(cur+ch).width>maxWidth&&cur){out.push(cur);cur=ch;}else{cur+=ch;}}if(cur)out.push(cur);});return out;}
-  let toastTimer;function showToast(msg){clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.show(msg),0);}
-  renderPages();prevTitle.textContent=state.pages[0].title;prevBadge.textContent='HighMD · 灵感笔记';
+    if (cur) out.push(cur);
+  });
+  return out;
+}
 
+// === 自动保存：监听状态变化 ===
+watch([pages, currentPage, showTitle, autoPage, ratio, currentTpl, tplName, settings], () => {
+  try {
+    const p = pages.value[currentPage.value];
+    if (editorAreaRef.value) p.html = editorAreaRef.value.innerHTML;
+    p.title = titleValue.value;
+    ws.save({
+      pages: pages.value.map(pg => ({ title: pg.title, html: pg.html })),
+      currentPage: currentPage.value,
+      showTitle: showTitle.value,
+      autoPage: autoPage.value,
+      ratio: ratio.value,
+      currentTpl: currentTpl.value,
+      tplName: tplName.value,
+    });
+  } catch (_) { /* ignore */ }
+}, { deep: true });
+
+onMounted(() => {
   // 恢复工作区状态
   try {
     const saved = ws.restore();
     if (saved && saved.pages && saved.pages.length) {
-      state.pages = saved.pages.map(p => ({ title: p.title || '', html: p.html || '' }));
-      state.currentPage = Math.min(saved.currentPage || 0, state.pages.length - 1);
-      state.showTitle = saved.showTitle !== false;
-      state.autoPage = saved.autoPage !== false;
-      state.ratio = saved.ratio || '3-5';
-      state.currentTpl = saved.currentTpl || 'tpl-default';
-      state.tplName = saved.tplName || '简单格子';
+      pages.value = saved.pages.map(p => ({ title: p.title || '', html: p.html || '' }));
+      currentPage.value = Math.min(saved.currentPage || 0, pages.value.length - 1);
+      showTitle.value = saved.showTitle !== false;
+      autoPage.value = saved.autoPage !== false;
+      ratio.value = saved.ratio || '3-5';
+      currentTpl.value = saved.currentTpl || 'tpl-default';
+      tplName.value = saved.tplName || '简单格子';
       refreshPage();
-      renderPages();
-      // 恢复模板选中状态
-      previewStage.className = 'preview-stage ' + state.currentTpl;
-      tplNameEl.textContent = state.tplName;
-      // 恢复比例按钮
-      $$('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.ratio));
-      previewFrame.className = 'preview-frame r-' + state.ratio;
     }
-  } catch (_) {}
-
-  // 自动保存：每 10 秒保存一次
-  const autoSaveTimer = setInterval(() => {
-    try {
-      state.pages[state.currentPage].html = editorArea.innerHTML;
-      state.pages[state.currentPage].title = titleInput.value;
-      ws.save({
-        pages: state.pages.map(p => ({ title: p.title, html: p.html })),
-        currentPage: state.currentPage,
-        showTitle: state.showTitle,
-        autoPage: state.autoPage,
-        ratio: state.ratio,
-        currentTpl: state.currentTpl,
-        tplName: state.tplName
-      });
-    } catch (_) {}
-  }, 10000);
-
-  // 暴露 timer 以便清理
-  container._autoSaveTimer = autoSaveTimer;
-
+  } catch (_) { /* ignore */ }
 });
 
 onBeforeUnmount(() => {
-  const container = editorContainer.value;
   // 保存状态
   try {
-    state.pages[state.currentPage].html = $('#editorArea').innerHTML;
-    state.pages[state.currentPage].title = $('#titleInput').value;
+    const p = pages.value[currentPage.value];
+    if (editorAreaRef.value) p.html = editorAreaRef.value.innerHTML;
+    p.title = titleValue.value;
     ws.save({
-      pages: state.pages.map(p => ({ title: p.title, html: p.html })),
-      currentPage: state.currentPage,
-      showTitle: state.showTitle,
-      autoPage: state.autoPage,
-      ratio: state.ratio,
-      currentTpl: state.currentTpl,
-      tplName: state.tplName
+      pages: pages.value.map(pg => ({ title: pg.title, html: pg.html })),
+      currentPage: currentPage.value,
+      showTitle: showTitle.value,
+      autoPage: autoPage.value,
+      ratio: ratio.value,
+      currentTpl: currentTpl.value,
+      tplName: tplName.value,
     });
-  } catch (_) {}
-  // 清理 timer
-  if (container && container._autoSaveTimer) {
-    clearInterval(container._autoSaveTimer);
-  }
-  if (container) {
-    const clone = container.cloneNode(false);
-    container.parentNode?.replaceChild(clone, container);
-  }
+  } catch (_) { /* ignore */ }
 });
 </script>
 

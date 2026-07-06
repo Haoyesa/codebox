@@ -7,25 +7,25 @@
       <aside class="puzzle-side">
         <div class="section-block">
           <h4 class="section-title">画布操作</h4>
-          <button class="btn btn-block" @click="pickBg">
+          <button class="btn btn-block" :disabled="isLoading" @click="pickBg">
             <i data-lucide="image"></i>上传背景图
           </button>
           <div class="row" style="margin-top: 10px; gap: 8px;">
             <label class="checkbox">
-              <input type="checkbox" v-model="canvas.transparent" />
+              <input v-model="canvas.transparent" type="checkbox" />
               <span class="box"></span>透明背景
             </label>
           </div>
           <div class="row" style="margin-top: 8px; gap: 8px;">
             <label class="checkbox" :class="{ disabled: canvas.transparent }">
-              <input type="checkbox" v-model="canvas.solidBg" :disabled="canvas.transparent" />
+              <input v-model="canvas.solidBg" type="checkbox" :disabled="canvas.transparent" />
               <span class="box"></span>纯色背景
             </label>
-            <input type="color" v-model="canvas.bgColor" :disabled="canvas.transparent" class="color-pick" />
+            <input v-model="canvas.bgColor" type="color" :disabled="canvas.transparent" class="color-pick" />
           </div>
           <div class="row" style="margin-top: 10px; gap: 6px; font-size: 12px;">
-            <span class="muted" style="flex-shrink: 0;">宽</span><input type="number" v-model.number="canvas.width" min="50" max="4096" class="num" />
-            <span class="muted" style="flex-shrink: 0;">高</span><input type="number" v-model.number="canvas.height" min="50" max="4096" class="num" />
+            <span class="muted" style="flex-shrink: 0;">宽</span><input v-model.number="canvas.width" type="number" min="50" max="4096" class="num" />
+            <span class="muted" style="flex-shrink: 0;">高</span><input v-model.number="canvas.height" type="number" min="50" max="4096" class="num" />
           </div>
         </div>
 
@@ -45,7 +45,7 @@
             <button class="btn btn-sm btn-ghost" @click="clearTexts">清空文字</button>
           </div>
           <div class="row row-2col" style="gap: 8px; margin-top: 8px;">
-            <button class="btn btn-sm" @click="pickDecoration">添加图片</button>
+            <button class="btn btn-sm" :disabled="isLoading" @click="pickDecoration">添加图片</button>
             <button class="btn btn-sm btn-ghost" @click="clearImages">清空图片</button>
           </div>
         </div>
@@ -57,22 +57,22 @@
             <span class="tag tag-cyan" style="font-size:11px;margin-left:6px;">{{ selectedIds.length }} 个</span>
           </h4>
           <div class="batch-grid">
-            <button class="btn btn-xs" @click="alignSelected('left')" title="左对齐">
+            <button class="btn btn-xs" title="左对齐" @click="alignSelected('left')">
               <i data-lucide="align-left"></i>
             </button>
-            <button class="btn btn-xs" @click="alignSelected('hcenter')" title="水平居中">
+            <button class="btn btn-xs" title="水平居中" @click="alignSelected('hcenter')">
               <i data-lucide="align-center"></i>
             </button>
-            <button class="btn btn-xs" @click="alignSelected('right')" title="右对齐">
+            <button class="btn btn-xs" title="右对齐" @click="alignSelected('right')">
               <i data-lucide="align-right"></i>
             </button>
-            <button class="btn btn-xs" @click="alignSelected('top')" title="上对齐">
+            <button class="btn btn-xs" title="上对齐" @click="alignSelected('top')">
               <i data-lucide="align-start-vertical"></i>
             </button>
-            <button class="btn btn-xs" @click="alignSelected('vcenter')" title="垂直居中">
+            <button class="btn btn-xs" title="垂直居中" @click="alignSelected('vcenter')">
               <i data-lucide="align-center-vertical"></i>
             </button>
-            <button class="btn btn-xs" @click="alignSelected('bottom')" title="下对齐">
+            <button class="btn btn-xs" title="下对齐" @click="alignSelected('bottom')">
               <i data-lucide="align-end-vertical"></i>
             </button>
           </div>
@@ -89,10 +89,10 @@
         <div class="section-block">
           <h4 class="section-title">文件操作</h4>
           <div class="row" style="gap: 6px; flex-wrap: wrap;">
-            <button class="btn btn-sm" @click="addImageFolder">
+            <button class="btn btn-sm" :disabled="isLoading" @click="addImageFolder">
               <i data-lucide="folder-plus"></i>添加图片文件夹
             </button>
-            <button class="btn btn-sm" @click="pickOutput">输出目录</button>
+            <button class="btn btn-sm" :disabled="isLoading" @click="pickOutput">输出目录</button>
           </div>
           <div class="muted path" style="margin-top: 8px; font-size: 12px;" :title="outputDir">
             {{ outputDir || '未设置' }}
@@ -103,7 +103,7 @@
               <span class="img-folder-idx mono">#{{ i + 1 }}</span>
               <span class="img-folder-path mono" :title="f.path">{{ f.path }}</span>
               <span class="muted mono" style="font-size: 11px;">{{ f.files.length }} 张</span>
-              <button class="btn-icon" @click="removeImageFolder(f.id)" title="移除">
+              <button class="btn-icon" title="移除" @click="removeImageFolder(f.id)">
                 <i data-lucide="x"></i>
               </button>
             </div>
@@ -117,15 +117,15 @@
         <div class="section-block">
           <h4 class="section-title">生成规则</h4>
           <label class="radio" style="display: flex; margin-bottom: 8px;">
-            <input type="radio" v-model="rule.mode" value="single" />
+            <input v-model="rule.mode" type="radio" value="single" />
             <span class="box"></span>单一文件夹循环
           </label>
           <label class="checkbox" style="display: flex; margin-bottom: 8px; padding-left: 22px;">
-            <input type="checkbox" v-model="rule.firstAsCover" :disabled="rule.mode !== 'single'" />
+            <input v-model="rule.firstAsCover" type="checkbox" :disabled="rule.mode !== 'single'" />
             <span class="box"></span>拼图1作为封面（仅生成1张）
           </label>
           <label class="radio" style="display: flex;">
-            <input type="radio" v-model="rule.mode" value="multi" />
+            <input v-model="rule.mode" type="radio" value="multi" />
             <span class="box"></span>多文件夹模式
           </label>
           <div class="row" style="margin-top: 12px; gap: 8px; align-items: center;">
@@ -147,14 +147,14 @@
             <div class="setting-row" style="margin-bottom: 6px;">
               <span class="setting-label">添加水印</span>
               <label class="toggle">
-                <input type="checkbox" v-model="watermarkEnabled" />
+                <input v-model="watermarkEnabled" type="checkbox" />
                 <span class="slider"></span>
               </label>
             </div>
             <template v-if="watermarkEnabled">
               <div class="row" style="gap: 6px; margin-bottom: 6px;">
                 <span class="muted" style="font-size: 12px; flex-shrink: 0;">内容</span>
-                <input type="text" v-model="watermarkText" placeholder="水印文字" style="flex: 1; font-size: 12px;" />
+                <input v-model="watermarkText" type="text" placeholder="水印文字" style="flex: 1; font-size: 12px;" />
               </div>
               <div class="row" style="gap: 6px; margin-bottom: 6px;">
                 <span class="muted" style="font-size: 12px; flex-shrink: 0;">位置</span>
@@ -168,12 +168,12 @@
               </div>
               <div class="row" style="gap: 6px; margin-bottom: 6px; align-items: center;">
                 <span class="muted" style="font-size: 12px; flex-shrink: 0;">透明</span>
-                <input type="range" v-model.number="watermarkOpacity" min="0.1" max="1" step="0.05" style="flex: 1;" />
+                <input v-model.number="watermarkOpacity" type="range" min="0.1" max="1" step="0.05" style="flex: 1;" />
                 <span class="mono" style="font-size: 11px; min-width: 32px; text-align: right;">{{ Math.round(watermarkOpacity * 100) }}%</span>
               </div>
               <div class="row" style="gap: 6px; align-items: center;">
                 <span class="muted" style="font-size: 12px; flex-shrink: 0;">字号</span>
-                <input type="number" v-model.number="watermarkSize" min="8" max="200" style="flex: 1; font-size: 12px;" />
+                <input v-model.number="watermarkSize" type="number" min="8" max="200" style="flex: 1; font-size: 12px;" />
               </div>
             </template>
           </div>
@@ -186,13 +186,13 @@
             </select>
             <div v-if="outputFormat !== 'png'" class="quality-row">
               <span class="quality-label">质量</span>
-              <input type="range" v-model.number="outputQuality" min="0.1" max="1" step="0.01" />
+              <input v-model.number="outputQuality" type="range" min="0.1" max="1" step="0.01" />
               <span class="quality-value mono">{{ Math.round(outputQuality * 100) }}%</span>
             </div>
           </div>
           <div class="row" style="gap: 8px; margin-top: 8px;">
-            <button class="btn btn-sm" @click="debouncedPreviewAll">预览</button>
-            <button class="btn btn-sm btn-primary" @click="startGenerate" :disabled="!canGenerate || isGenerating">
+            <button class="btn btn-sm" :disabled="isLoading" @click="debouncedPreviewAll">预览</button>
+            <button class="btn btn-sm btn-primary" :disabled="!canGenerate || isGenerating || isLoading" @click="startGenerate">
               <i data-lucide="play"></i>{{ isGenerating ? '生成中 ' + genDone + '/' + genTotal : '开始生成' }}
             </button>
             <button v-if="isGenerating" class="btn btn-sm btn-warn" @click="cancelGenerate">停止</button>
@@ -200,17 +200,13 @@
           <div class="muted" style="margin-top: 8px; font-size: 12px;">
             {{ isGenerating ? genStatus : templateHint }}
           </div>
-          <div v-if="isGenerating" class="progress-bar" style="margin-top: 6px;">
-            <div class="fill" :style="{ width: (genTotal ? (genDone / genTotal * 100) : 0) + '%' }"></div>
-          </div>
+          <ProgressBar v-if="isGenerating" :percent="genTotal ? (genDone / genTotal * 100) : 0" style="margin-top: 6px;" />
           <div v-if="generateProgress.status === 'running' || generateProgress.status === 'done'" class="gen-progress-area" style="margin-top: 10px;">
             <div class="gen-progress-header">
               <span class="mono">{{ generateProgress.current }}/{{ generateProgress.total }}</span>
               <span v-if="generateProgress.status === 'done'" class="tag tag-green" style="font-size:11px;">完成</span>
             </div>
-            <div class="progress-bar-exp">
-              <div class="progress-fill-exp" :style="{ width: (generateProgress.total ? generateProgress.current / generateProgress.total * 100 : 0) + '%' }"></div>
-            </div>
+            <ProgressBar :percent="generateProgress.total ? generateProgress.current / generateProgress.total * 100 : 0" />
           </div>
         </div>
       </aside>
@@ -222,17 +218,17 @@
             <span class="template-pill" :class="{ dirty: isDirty }">
               {{ currentTemplate || '未选择模板' }}
               <span v-if="isDirty" class="pill-dot" title="有未保存的改动"></span>
-              <button class="pill-x" @click="deleteCurrentTemplate" title="关闭模板">×</button>
+              <button class="pill-x" title="关闭模板" @click="deleteCurrentTemplate">×</button>
             </span>
           </div>
           <div class="row" style="gap: 6px;">
             <button class="btn btn-sm" @click="newTemplate">+ 新建</button>
             <button class="btn btn-sm" @click="saveTemplate">保存模板</button>
-            <button class="btn btn-sm" @click="deleteTemplate">删除模板</button>
+            <button class="btn btn-sm" :disabled="isLoading" @click="deleteTemplate">删除模板</button>
             <select v-model="currentTemplate" class="tpl-select">
               <option v-for="t in templates" :key="t" :value="t">{{ t || '空模板' }}</option>
             </select>
-            <div class="menu-anchor" ref="canvasMenuAnchorRef">
+            <div ref="canvasMenuAnchorRef" class="menu-anchor">
               <button class="btn-icon" @click="canvasMenu"><i data-lucide="more-horizontal"></i></button>
               <div v-if="canvasMenuOpen" class="menu-pop" @click.stop>
                 <button class="menu-item" @click="fitToView"><i data-lucide="maximize-2"></i><span>适应窗口</span></button>
@@ -240,16 +236,16 @@
                 <button class="menu-item" :disabled="!selectedId" @click="bringToFront"><i data-lucide="bring-to-front"></i><span>置于顶层</span></button>
                 <button class="menu-item" :disabled="!selectedId" @click="sendToBack"><i data-lucide="send-to-back"></i><span>置于底层</span></button>
                 <div class="menu-divider"></div>
-                <button class="menu-item" @click="clearAllElements"><i data-lucide="trash-2"></i><span>清空画布</span></button>
+                <button class="menu-item" :disabled="isLoading" @click="clearAllElements"><i data-lucide="trash-2"></i><span>清空画布</span></button>
                 <div class="menu-divider"></div>
-                <button class="menu-item" @click="exportTemplateJson"><i data-lucide="download"></i><span>导出 JSON</span></button>
-                <button class="menu-item" @click="importTemplateJson"><i data-lucide="upload"></i><span>导入 JSON</span></button>
+                <button class="menu-item" :disabled="isLoading" @click="exportTemplateJson"><i data-lucide="download"></i><span>导出 JSON</span></button>
+                <button class="menu-item" :disabled="isLoading" @click="importTemplateJson"><i data-lucide="upload"></i><span>导入 JSON</span></button>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="canvas-stage" ref="stageRef" @wheel.prevent="onWheel" @mousedown.self="onStageClick">
+        <div ref="stageRef" class="canvas-stage" @wheel.prevent="onWheel" @mousedown.self="onStageClick">
           <div
           class="canvas-frame"
           :class="{ transparent: canvas.transparent, dragging: isDragging }"
@@ -299,7 +295,7 @@
                 <span class="handle tr" @mousedown.stop="startResize($event, el, 'tr')"></span>
                 <span class="handle bl" @mousedown.stop="startResize($event, el, 'bl')"></span>
                 <span class="handle br" @mousedown.stop="startResize($event, el, 'br')"></span>
-                <button class="el-del" @click.stop="removeEl(el.id)" title="删除"><i data-lucide="x"></i></button>
+                <button class="el-del" title="删除" @click.stop="removeEl(el.id)"><i data-lucide="x"></i></button>
               </template>
             </div>
 
@@ -339,16 +335,13 @@
             </div>
           </div>
 
-          <div class="image-list" v-if="images.length">
+          <div v-if="images.length" class="image-list">
             <div v-for="(img, i) in images" :key="i" class="img-chip" :title="img.name">
               <i data-lucide="image" style="width: 12px; height: 12px;"></i>
               <span class="img-name">{{ img.name }}</span>
             </div>
           </div>
-          <div v-else class="empty-state" style="padding: 24px 0;">
-            <i data-lucide="inbox"></i>
-            <p>还没有添加图片</p>
-          </div>
+          <EmptyState v-else title="还没有添加图片" style="padding: 24px 0;" />
         </div>
       </div>
     </div>
@@ -381,7 +374,7 @@
           <div class="modal-head">
             <h4 class="modal-title">预览</h4>
             <span class="muted" style="font-size: 12px;">单文件夹取首张，多文件夹按规则取第 0 张</span>
-            <button class="btn-icon modal-close" @click="closePreview" title="关闭（ESC）"><i data-lucide="x"></i></button>
+            <button class="btn-icon modal-close" title="关闭（ESC）" @click="closePreview"><i data-lucide="x"></i></button>
           </div>
           <div class="modal-body preview-body">
             <img v-if="previewUrl" :src="previewUrl" class="preview-img" alt="preview" />
@@ -402,13 +395,15 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import html2canvas from 'html2canvas';
-import { getExt, getMimeFromPath, safeOutputDir } from '../utils/file.js';
+import { getMimeFromPath, safeOutputDir } from '../utils/file.js';
 import { yieldToMain } from '../utils/format.js';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
 import { useUndoRedo } from '../composables/useUndoRedo.js';
 import { logger } from '../composables/useLogger.js';
 import { debounce } from '../composables/useLogger.js';
+import ProgressBar from './ProgressBar.vue';
+import EmptyState from './EmptyState.vue';
 
 const toast = useToast();
 
@@ -475,6 +470,7 @@ const isDragging = ref(false);
 const contextMenu = ref({ show: false, x: 0, y: 0, type: 'canvas', targetId: null });
 
 // generation state
+const isLoading = ref(false);
 const isGenerating = ref(false);
 const abortGen = ref(false);
 const genDone = ref(0);
@@ -540,7 +536,7 @@ function loadAllTemplateData() {
   try { return JSON.parse(localStorage.getItem(TEMPLATE_DATA_KEY) || '{}'); } catch (_) { return {}; }
 }
 function persistAllTemplateData(map) {
-  try { localStorage.setItem(TEMPLATE_DATA_KEY, JSON.stringify(map)); } catch (_) {}
+  try { localStorage.setItem(TEMPLATE_DATA_KEY, JSON.stringify(map)); } catch (_) { /* ignore */ }
 }
 
 const estimatedCount = computed(() => {
@@ -647,14 +643,15 @@ function clearTexts() {
 }
 
 async function pickDecoration() {
-  if (!window.electronAPI) {
-    toast.show('请在 Electron 版本中添加装饰图', 'warn');
-    return;
-  }
-  const r = await window.electronAPI.openFiles({ filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }] });
-  if (r.canceled || !r.filePaths.length) return;
-  const filePath = r.filePaths[0];
   try {
+    isLoading.value = true;
+    if (!window.electronAPI) {
+      toast.show('请在 Electron 版本中添加装饰图', 'warn');
+      return;
+    }
+    const r = await window.electronAPI.openFiles({ filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }] });
+    if (r.canceled || !r.filePaths.length) return;
+    const filePath = r.filePaths[0];
     const fr = await window.electronAPI.readFile(filePath);
     if (!fr.success) throw new Error(fr.error);
     const mime = getMimeFromPath(filePath);
@@ -673,7 +670,9 @@ async function pickDecoration() {
     };
     img.src = url;
   } catch (err) {
-    toast.show('读取图片失败：' + err.message, 'error');
+    toast.show('读取图片失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
 }
 function clearImages() {
@@ -976,51 +975,69 @@ function sendToBackFromCtx() {
 
 // 背景 / 图片
 async function pickBg() {
-  if (!window.electronAPI) {
-    toast.show('请在 Electron 版本中使用', 'warn');
-    return;
+  try {
+    isLoading.value = true;
+    if (!window.electronAPI) {
+      toast.show('请在 Electron 版本中使用', 'warn');
+      return;
+    }
+    const r = await window.electronAPI.openFiles({ filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp'] }] });
+    if (r.canceled || !r.filePaths.length) return;
+    const filePath = r.filePaths[0];
+    const fr = await window.electronAPI.readFile(filePath);
+    if (!fr.success) { toast.show(fr.error, 'error'); return; }
+    const mime = getMimeFromPath(filePath);
+    const blob = new Blob([fr.data], { type: mime });
+    if (canvas.bgImg) try { URL.revokeObjectURL(canvas.bgImg); } catch (_) { /* ignore */ }
+    canvas.bgImg = URL.createObjectURL(blob);
+  } catch (err) {
+    toast.show('读取背景图失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
-  const r = await window.electronAPI.openFiles({ filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp'] }] });
-  if (r.canceled || !r.filePaths.length) return;
-  const filePath = r.filePaths[0];
-  const fr = await window.electronAPI.readFile(filePath);
-  if (!fr.success) { toast.show(fr.error, 'error'); return; }
-  const mime = getMimeFromPath(filePath);
-  const blob = new Blob([fr.data], { type: mime });
-  if (canvas.bgImg) try { URL.revokeObjectURL(canvas.bgImg); } catch (_) {}
-  canvas.bgImg = URL.createObjectURL(blob);
 }
 
 async function addImageFolder() {
-  if (!window.electronAPI) {
-    toast.show('请在 Electron 版本中使用', 'warn');
-    return;
+  try {
+    isLoading.value = true;
+    if (!window.electronAPI) {
+      toast.show('请在 Electron 版本中使用', 'warn');
+      return;
+    }
+    if (rule.mode === 'single' && imageFolders.value.length >= 1) {
+      toast.show('单一文件夹模式：只能添加 1 个文件夹，请先清空', 'warn');
+      return;
+    }
+    const r = await window.electronAPI.openDirectory();
+    if (r.canceled || !r.filePaths.length) return;
+    await loadImageFolder(r.filePaths[0], true);
+  } catch (err) {
+    toast.show('读取文件夹失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
-  if (rule.mode === 'single' && imageFolders.value.length >= 1) {
-    toast.show('单一文件夹模式：只能添加 1 个文件夹，请先清空', 'warn');
-    return;
-  }
-  const r = await window.electronAPI.openDirectory();
-  if (r.canceled || !r.filePaths.length) return;
-  await loadImageFolder(r.filePaths[0], true);
 }
 
 async function loadImageFolder(dirPath, recursive) {
-  const r = await window.electronAPI.readDir(dirPath, {
-    recursive,
-    extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
-  });
-  if (!r.success) { toast.show(r.error, 'error'); return; }
-  const sorted = r.files.slice().sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
-  const sep = dirPath.includes('\\') ? '\\' : '/';
-  const base = dirPath.replace(/[\\/]+$/, '');
-  imageFolders.value.push({
-    id: folderId++,
-    path: dirPath,
-    recursive,
-    files: sorted.map(name => ({ name, path: base + sep + name }))
-  });
-  toast.show('已添加：' + sorted.length + ' 张图片', 'success');
+  try {
+    const r = await window.electronAPI.readDir(dirPath, {
+      recursive,
+      extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
+    });
+    if (!r.success) { toast.show(r.error, 'error'); return; }
+    const sorted = r.files.slice().sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
+    const sep = dirPath.includes('\\') ? '\\' : '/';
+    const base = dirPath.replace(/[\\/]+$/, '');
+    imageFolders.value.push({
+      id: folderId++,
+      path: dirPath,
+      recursive,
+      files: sorted.map(name => ({ name, path: base + sep + name }))
+    });
+    toast.show('已添加：' + sorted.length + ' 张图片', 'success');
+  } catch (err) {
+    toast.show('加载图片失败', 'error');
+  }
 }
 
 function removeImageFolder(id) {
@@ -1032,16 +1049,23 @@ async function clearImageFolders() {
 }
 
 async function pickOutput() {
-  if (!window.electronAPI) {
-    toast.show('请在 Electron 版本中使用', 'warn');
-    return;
+  try {
+    isLoading.value = true;
+    if (!window.electronAPI) {
+      toast.show('请在 Electron 版本中使用', 'warn');
+      return;
+    }
+    const r = await window.electronAPI.selectOutputDir();
+    if (r.canceled || !r.filePaths.length) return;
+    outputDir.value = r.filePaths[0];
+  } catch (err) {
+    toast.show('选择目录失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
-  const r = await window.electronAPI.selectOutputDir();
-  if (r.canceled || !r.filePaths.length) return;
-  outputDir.value = r.filePaths[0];
 }
 
-function updateEstimate() { /* computed handles it */ }
+// updateEstimate is intentionally omitted; computed handles it.
 
 // Watch for template changes to load the saved state.
 watch(currentTemplate, (name) => { if (name) loadTemplate(name); });
@@ -1110,7 +1134,7 @@ function loadTemplate(name) {
   // Hard reset first so we don't leak blob URLs from the previous template.
   for (const el of elements.value) {
     if ((el.type === 'image-slot' || el.type === 'image') && el.src) {
-      try { URL.revokeObjectURL(el.src); } catch (_) {}
+      try { URL.revokeObjectURL(el.src); } catch (_) { /* ignore */ }
     }
   }
   elements.value = [];
@@ -1132,16 +1156,23 @@ function loadTemplate(name) {
   lastSavedSnapshot.value = serializeCurrent();
 }
 async function deleteTemplate() {
-  if (!currentTemplate.value) return;
-  if (!(await window.appConfirm({ title: '删除模板', message: '删除模板 ' + currentTemplate.value + ' ?', type: 'warning' }))) return;
-  const name = currentTemplate.value;
-  templates.value = templates.value.filter(t => t !== name);
-  persistTemplates();
-  const all = loadAllTemplateData();
-  delete all[name];
-  persistAllTemplateData(all);
-  currentTemplate.value = '';
-  toast.show('已删除', 'success');
+  try {
+    isLoading.value = true;
+    if (!currentTemplate.value) return;
+    if (!(await window.appConfirm({ title: '删除模板', message: '删除模板 ' + currentTemplate.value + ' ?', type: 'warning' }))) return;
+    const name = currentTemplate.value;
+    templates.value = templates.value.filter(t => t !== name);
+    persistTemplates();
+    const all = loadAllTemplateData();
+    delete all[name];
+    persistAllTemplateData(all);
+    currentTemplate.value = '';
+    toast.show('已删除', 'success');
+  } catch (err) {
+    toast.show('删除模板失败', 'error');
+  } finally {
+    isLoading.value = false;
+  }
 }
 function deleteCurrentTemplate() {
   if (!currentTemplate.value) return;
@@ -1170,17 +1201,24 @@ function closeCanvasMenu() {
 }
 
 async function clearAllElements() {
-  if (elements.value.length === 0) return;
-  if (!(await window.appConfirm({ title: '清空画布', message: '清空画布上所有元素？此操作不影响模板本身。', type: 'warning' }))) return;
-  for (const el of elements.value) {
-    if ((el.type === 'image-slot' || el.type === 'image') && el.src) {
-      try { URL.revokeObjectURL(el.src); } catch (_) {}
+  try {
+    isLoading.value = true;
+    if (elements.value.length === 0) return;
+    if (!(await window.appConfirm({ title: '清空画布', message: '清空画布上所有元素？此操作不影响模板本身。', type: 'warning' }))) return;
+    for (const el of elements.value) {
+      if ((el.type === 'image-slot' || el.type === 'image') && el.src) {
+        try { URL.revokeObjectURL(el.src); } catch (_) { /* ignore */ }
+      }
     }
+    elements.value = [];
+    selectedId.value = null;
+    closeCanvasMenu();
+    recordHistory();
+  } catch (err) {
+    toast.show('清空画布失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
-  elements.value = [];
-  selectedId.value = null;
-  closeCanvasMenu();
-  recordHistory();
 }
 
 function fitToView() {
@@ -1228,43 +1266,57 @@ function sendToBack() {
 }
 
 async function exportTemplateJson() {
-  const data = {
-    name: currentTemplate.value || 'untitled',
-    canvas: {
-      width: canvas.width, height: canvas.height,
-      transparent: canvas.transparent, solidBg: canvas.solidBg, bgColor: canvas.bgColor
-    },
-    elements: elements.value.map(e => { const c = { ...e }; if (c.type === 'image-slot' || c.type === 'image') c.src = ''; return c; })
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = (data.name || 'template') + '.json'; a.click();
-  URL.revokeObjectURL(url);
-  toast.show('已导出 JSON', 'success');
-  closeCanvasMenu();
+  try {
+    isLoading.value = true;
+    const data = {
+      name: currentTemplate.value || 'untitled',
+      canvas: {
+        width: canvas.width, height: canvas.height,
+        transparent: canvas.transparent, solidBg: canvas.solidBg, bgColor: canvas.bgColor
+      },
+      elements: elements.value.map(e => { const c = { ...e }; if (c.type === 'image-slot' || c.type === 'image') c.src = ''; return c; })
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (data.name || 'template') + '.json'; a.click();
+    URL.revokeObjectURL(url);
+    toast.show('已导出 JSON', 'success');
+    closeCanvasMenu();
+  } catch (err) {
+    toast.show('导出失败', 'error');
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 async function importTemplateJson() {
-  if (!window.electronAPI) {
-    const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = 'application/json';
-    inp.onchange = () => {
-      const f = inp.files && inp.files[0];
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => applyTemplateJson(String(reader.result));
-      reader.readAsText(f);
-    };
-    inp.click();
-    return;
+  try {
+    isLoading.value = true;
+    if (!window.electronAPI) {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'application/json';
+      inp.onchange = () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => applyTemplateJson(String(reader.result));
+        reader.readAsText(f);
+      };
+      inp.click();
+      return;
+    }
+    const r = await window.electronAPI.openFiles({ filters: [{ name: 'JSON', extensions: ['json'] }] });
+    if (r.canceled || !r.filePaths.length) return;
+    const fr = await window.electronAPI.readFile(r.filePaths[0]);
+    if (!fr.success) { toast.show(fr.error, 'error'); return; }
+    applyTemplateJson(new TextDecoder('utf-8').decode(new Uint8Array(fr.data)));
+    closeCanvasMenu();
+  } catch (err) {
+    toast.show('导入失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
-  const r = await window.electronAPI.openFiles({ filters: [{ name: 'JSON', extensions: ['json'] }] });
-  if (r.canceled || !r.filePaths.length) return;
-  const fr = await window.electronAPI.readFile(r.filePaths[0]);
-  if (!fr.success) { toast.show(fr.error, 'error'); return; }
-  applyTemplateJson(new TextDecoder('utf-8').decode(new Uint8Array(fr.data)));
-  closeCanvasMenu();
 }
 
 function applyTemplateJson(text) {
@@ -1310,7 +1362,7 @@ async function previewAll() {
       await new Promise((resolve, reject) => {
         const probe = new Image(); probe.onload = resolve; probe.onerror = reject; probe.src = url;
       });
-      if (slots[i].src) try { URL.revokeObjectURL(slots[i].src); } catch (_) {}
+      if (slots[i].src) try { URL.revokeObjectURL(slots[i].src); } catch (_) { /* ignore */ }
       slots[i].src = url;
     }
     zoom.value = 1;
@@ -1321,7 +1373,7 @@ async function previewAll() {
       scale: 1, logging: false, useCORS: true, allowTaint: true
     });
     const blob = await new Promise(resolve => out.toBlob(resolve, outputMimeType.value, outputFormat.value !== 'png' ? outputQuality.value : undefined));
-    if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) {}
+    if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) { /* ignore */ }
     previewUrl.value = URL.createObjectURL(blob);
     showPreviewModal.value = true;
   } catch (err) {
@@ -1329,7 +1381,7 @@ async function previewAll() {
   } finally {
     for (const slot of slots) {
       const prev = prevSrcs.get(slot.id);
-      if (slot.src && slot.src !== prev) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+      if (slot.src && slot.src !== prev) try { URL.revokeObjectURL(slot.src); } catch (_) { /* ignore */ }
       slot.src = prev || '';
     }
     zoom.value = savedZoom;
@@ -1340,7 +1392,7 @@ async function previewAll() {
 const debouncedPreviewAll = debounce(previewAll, 500);
 
 function closePreview() {
-  if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) {}
+  if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) { /* ignore */ }
   previewUrl.value = '';
   showPreviewModal.value = false;
 }
@@ -1361,6 +1413,7 @@ async function startGenerate() {
   if (!frame) { toast.show('画布节点未找到', 'error'); return; }
 
   const savedZoom = zoom.value;
+  isLoading.value = true;
   isGenerating.value = true;
   abortGen.value = false;
   genDone.value = 0;
@@ -1399,11 +1452,11 @@ async function startGenerate() {
               probe.onload = resolve; probe.onerror = reject;
               probe.src = url;
             });
-            if (slot.src) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+            if (slot.src) try { URL.revokeObjectURL(slot.src); } catch (_) { /* ignore */ }
             slot.src = url;
           }
         } else {
-          if (slot.src) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+          if (slot.src) try { URL.revokeObjectURL(slot.src); } catch (_) { /* ignore */ }
           slot.src = '';
         }
       }
@@ -1465,10 +1518,11 @@ async function startGenerate() {
   } finally {
     for (const slot of slots) {
       const prev = prevSrcs.get(slot.id);
-      if (slot.src && slot.src !== prev) try { URL.revokeObjectURL(slot.src); } catch (_) {}
+      if (slot.src && slot.src !== prev) try { URL.revokeObjectURL(slot.src); } catch (_) { /* ignore */ }
       slot.src = prev || '';
     }
     zoom.value = savedZoom;
+    isLoading.value = false;
     isGenerating.value = false;
     const wasAbort = abortGen.value;
     abortGen.value = false;
@@ -1517,7 +1571,7 @@ watch(images, () => {
         if (fr.success) {
           const mime = getMimeFromPath(first.path);
           const blob = new Blob([fr.data], { type: mime });
-          if (emptySlot.src) try { URL.revokeObjectURL(emptySlot.src); } catch (_) {}
+          if (emptySlot.src) try { URL.revokeObjectURL(emptySlot.src); } catch (_) { /* ignore */ }
           emptySlot.src = URL.createObjectURL(blob);
         }
         emptySlot._srcLoading = false;
@@ -1819,12 +1873,6 @@ onMounted(async () => {
     flex: 1; min-width: 0; font-size: 11px; color: var(--text-2);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .progress-bar { height: 4px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }
-  .progress-bar .fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--neon-cyan), var(--primary));
-    transition: width 0.2s;
-  }
 
 /* ============================================================
    模板 dirty 指示
@@ -2087,16 +2135,5 @@ onMounted(async () => {
   justify-content: space-between;
   font-size: 12px;
 }
-.progress-bar-exp {
-  height: 6px;
-  background: var(--panel-2);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.progress-fill-exp {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--neon-magenta));
-  border-radius: 3px;
-  transition: width .3s ease;
-}
+
 </style>

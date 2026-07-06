@@ -19,13 +19,13 @@ function load() {
       const parsed = JSON.parse(raw);
       settings.value = { ...defaultSettings, ...parsed };
     }
-  } catch (_) {}
+  } catch (_) { /* ignore */ }
 }
 
 function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings.value));
-  } catch (_) {}
+  } catch (_) { /* ignore */ }
 }
 
 function set(key, value) {

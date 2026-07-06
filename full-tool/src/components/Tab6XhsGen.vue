@@ -2,17 +2,17 @@
   <section :class="$attrs.class" class="xhs-gen-wrap">
     <div ref="containerRef" class="xhs-gen-root">
 <!-- Toast 通知容器 -->
-<div class="toast-container" id="toastContainer"></div>
+<div id="toastContainer" class="toast-container"></div>
 
 <!-- 全屏预览覆盖层 -->
-<div class="fullscreen-overlay" id="fullscreenOverlay">
+<div id="fullscreenOverlay" class="fullscreen-overlay">
   <canvas id="fullscreenCanvas"></canvas>
   <div class="fs-info">
     <span id="fsPageInfo"></span>
     <kbd>← →</kbd> 翻页
     <kbd>ESC</kbd> 退出
   </div>
-  <button class="fullscreen-close" id="fullscreenClose">&times;</button>
+  <button id="fullscreenClose" class="fullscreen-close">&times;</button>
 </div>
 
 <!-- ===== Header ===== -->
@@ -24,7 +24,7 @@
   </div>
   <h1>📕 爆款素材生成器</h1>
   <div class="subtitle">批量生成原创图文 · 一键导出</div>
-  <button class="theme-toggle" id="themeToggle" title="切换暗色模式">🌙</button>
+  <button id="themeToggle" class="theme-toggle" title="切换暗色模式">🌙</button>
 </header>
 
 <!-- ===== 主体 ===== -->
@@ -33,8 +33,8 @@
   <!-- 左侧：模板预览 -->
   <aside class="panel left-panel">
     <div class="panel-title">背景模板预览</div>
-    <div class="phone-frame" id="templateFrame">
-      <div class="placeholder-text" id="templatePlaceholder">请选择背景图片<br/>开始预览</div>
+    <div id="templateFrame" class="phone-frame">
+      <div id="templatePlaceholder" class="placeholder-text">请选择背景图片<br/>开始预览</div>
       <img id="templateImg" style="display:none;"/>
     </div>
     <div class="tag-hint" style="margin-top:10px;">
@@ -45,47 +45,47 @@
   <!-- 中间：Canvas 预览 -->
   <section class="panel center-panel">
     <div class="preview-header">
-      <button class="nav-btn" id="undoBtn" disabled title="撤销 (Ctrl+Z)">↶</button>
-      <button class="nav-btn" id="prevBtn" disabled>上一页</button>
+      <button id="undoBtn" class="nav-btn" disabled title="撤销 (Ctrl+Z)">↶</button>
+      <button id="prevBtn" class="nav-btn" disabled>上一页</button>
       <span>预览图片 - 标题</span>
-      <div class="page-info" id="pageInfo">0 / 0</div>
-      <button class="nav-btn" id="nextBtn" disabled>下一页</button>
-      <button class="nav-btn" id="redoBtn" disabled title="重做 (Ctrl+Y)">↷</button>
+      <div id="pageInfo" class="page-info">0 / 0</div>
+      <button id="nextBtn" class="nav-btn" disabled>下一页</button>
+      <button id="redoBtn" class="nav-btn" disabled title="重做 (Ctrl+Y)">↷</button>
     </div>
-    <div class="preview-box" id="previewBox">
-      <div class="drag-hint" id="dragHint">拖拽文字或装饰元素调整位置</div>
-      <div class="placeholder" id="previewPlaceholder">请选择背景图片开始预览</div>
+    <div id="previewBox" class="preview-box">
+      <div id="dragHint" class="drag-hint">拖拽文字或装饰元素调整位置</div>
+      <div id="previewPlaceholder" class="placeholder">请选择背景图片开始预览</div>
       <canvas id="previewCanvas" style="display:none;"></canvas>
     </div>
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-text" id="progressText">0 / 0</div>
+    <div id="progressWrap" class="progress-wrap">
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="progressText" class="progress-text">0 / 0</div>
     </div>
     <div class="action-bar">
-      <button class="btn-generate" id="generateBtn">生成全部图片</button>
-      <button class="btn-download" id="downloadBtn">批量下载 ZIP</button>
+      <button id="generateBtn" class="btn-generate">生成全部图片</button>
+      <button id="downloadBtn" class="btn-download">批量下载 ZIP</button>
     </div>
-    <div class="thumb-list" id="thumbList" style="display:none;"></div>
+    <div id="thumbList" class="thumb-list" style="display:none;"></div>
   </section>
 
   <!-- 右侧：控制面板 -->
-  <aside class="panel right-panel" id="rightPanel">
+  <aside id="rightPanel" class="panel right-panel">
 
     <!-- CSV 导入 -->
     <div class="control-group">
       <div class="control-group-title">
         <span class="icon">&#128194;</span> CSV文件导入
       </div>
-      <div class="drop-zone" id="csvDropZone">
-        <button class="btn-block btn-green" id="csvBtn">导入CSV文件</button>
-        <div class="status-text" id="csvStatus"></div>
-        <input type="file" class="file-input" id="csvInput" accept=".csv,.txt"/>
+      <div id="csvDropZone" class="drop-zone">
+        <button id="csvBtn" class="btn-block btn-green">导入CSV文件</button>
+        <div id="csvStatus" class="status-text"></div>
+        <input id="csvInput" type="file" class="file-input" accept=".csv,.txt"/>
       </div>
       <div class="tag-hint">CSV格式说明：第一列为ID值，第二列为标题内容（支持换行，内容会原样渲染到图片上），第三列可作为副标题</div>
     </div>
 
     <!-- CSV 列映射 -->
-    <div class="control-group" id="colMappingGroup" style="display:none;">
+    <div id="colMappingGroup" class="control-group" style="display:none;">
       <div class="control-group-title">CSV 列映射</div>
       <div class="form-row">
         <label>ID列</label>
@@ -101,7 +101,7 @@
           <option value="">（不使用）</option>
         </select>
       </div>
-      <button class="btn-block btn-blue" id="applyMappingBtn" style="margin-top:8px;">应用列映射</button>
+      <button id="applyMappingBtn" class="btn-block btn-blue" style="margin-top:8px;">应用列映射</button>
     </div>
 
     <!-- 输出尺寸 -->
@@ -117,14 +117,14 @@
           <option value="custom">自定义</option>
         </select>
       </div>
-      <div class="form-row" id="customSizeRow" style="display:none;">
+      <div id="customSizeRow" class="form-row" style="display:none;">
         <label>宽</label>
-        <input type="number" class="input-small" id="customWidth" value="1080" min="100" max="4096"/>
+        <input id="customWidth" type="number" class="input-small" value="1080" min="100" max="4096"/>
         <label style="min-width:auto;margin-left:12px;">高</label>
-        <input type="number" class="input-small" id="customHeight" value="1920" min="100" max="4096"/>
+        <input id="customHeight" type="number" class="input-small" value="1920" min="100" max="4096"/>
       </div>
       <div class="form-row" style="margin-top:4px;">
-        <span style="font-size:11px;color:var(--text-3);" id="sizeInfo">当前: 1080 × 1920 (9:16)</span>
+        <span id="sizeInfo" style="font-size:11px;color:var(--text-3);">当前: 1080 × 1920 (9:16)</span>
       </div>
     </div>
 
@@ -133,10 +133,10 @@
       <div class="control-group-title">
         <span class="icon">&#127748;</span> 背景图片选择
       </div>
-      <div class="drop-zone" id="bgDropZone">
-        <button class="btn-block btn-blue" id="bgBtn">选择背景图片（支持多选）</button>
-        <div class="file-name" id="bgFileName"></div>
-        <input type="file" class="file-input" id="bgInput" accept="image/*" multiple/>
+      <div id="bgDropZone" class="drop-zone">
+        <button id="bgBtn" class="btn-block btn-blue">选择背景图片（支持多选）</button>
+        <div id="bgFileName" class="file-name"></div>
+        <input id="bgInput" type="file" class="file-input" accept="image/*" multiple/>
       </div>
       <!-- 已上传的背景模板列表 -->
       <div id="bgTemplateList" style="margin-top:8px;display:none;">
@@ -211,34 +211,34 @@
       </div>
       <div class="form-row">
         <label>颜色</label>
-        <input type="color" id="fontColor" value="#000000"/>
+        <input id="fontColor" type="color" value="#000000"/>
         <label style="min-width:auto;margin-left:8px;">大小</label>
-        <input type="number" class="input-small" id="fontSize" value="120" min="12" max="500"/>
+        <input id="fontSize" type="number" class="input-small" value="120" min="12" max="500"/>
       </div>
       <div class="form-row">
         <label>描边</label>
-        <input type="checkbox" id="strokeEnabled"/>
-        <input type="color" id="strokeColor" value="#ff0000" style="width:28px;height:22px;padding:0;border:none;"/>
+        <input id="strokeEnabled" type="checkbox"/>
+        <input id="strokeColor" type="color" value="#ff0000" style="width:28px;height:22px;padding:0;border:none;"/>
         <label style="min-width:auto;margin-left:12px;">加粗</label>
-        <input type="checkbox" id="boldEnabled" checked/>
+        <input id="boldEnabled" type="checkbox" checked/>
       </div>
       <div class="form-row" style="margin-top:8px;">
         <label>阴影</label>
-        <input type="checkbox" id="shadowEnabled"/>
-        <input type="color" id="shadowColor" value="#000000" style="width:28px;height:22px;padding:0;border:none;"/>
+        <input id="shadowEnabled" type="checkbox"/>
+        <input id="shadowColor" type="color" value="#000000" style="width:28px;height:22px;padding:0;border:none;"/>
         <label style="min-width:auto;margin-left:8px;">X</label>
-        <input type="number" class="input-small" id="shadowX" value="4" min="-50" max="50"/>
+        <input id="shadowX" type="number" class="input-small" value="4" min="-50" max="50"/>
         <label style="min-width:auto;margin-left:4px;">Y</label>
-        <input type="number" class="input-small" id="shadowY" value="4" min="-50" max="50"/>
+        <input id="shadowY" type="number" class="input-small" value="4" min="-50" max="50"/>
         <label style="min-width:auto;margin-left:4px;">模糊</label>
-        <input type="number" class="input-small" id="shadowBlur" value="8" min="0" max="100"/>
+        <input id="shadowBlur" type="number" class="input-small" value="8" min="0" max="100"/>
       </div>
       <div class="form-row" style="margin-top:8px;">
         <label>透明度</label>
-        <input type="range" id="textOpacity" min="0" max="100" value="100" style="flex:1;"/>
+        <input id="textOpacity" type="range" min="0" max="100" value="100" style="flex:1;"/>
         <span id="textOpacityVal" style="font-size:12px;min-width:36px;text-align:right;">100%</span>
         <label style="min-width:auto;margin-left:12px;">旋转</label>
-        <input type="number" class="input-small" id="textRotation" value="0" min="-180" max="180"/>
+        <input id="textRotation" type="number" class="input-small" value="0" min="-180" max="180"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
       </div>
     </div>
@@ -256,13 +256,13 @@
       </div>
       <div class="form-row">
         <label>位置X</label>
-        <input type="number" class="input-small" id="posX" value="90"/>
+        <input id="posX" type="number" class="input-small" value="90"/>
         <label style="min-width:auto;margin-left:12px;">位置Y</label>
-        <input type="number" class="input-small" id="posY" value="300"/>
+        <input id="posY" type="number" class="input-small" value="300"/>
       </div>
       <div class="form-row" style="margin-top:6px;">
         <label>行间距</label>
-        <input type="number" class="input-small" id="lineSpacing" value="120" min="0" max="200"/>
+        <input id="lineSpacing" type="number" class="input-small" value="120" min="0" max="200"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:4px;">多行标题时行与行的间距</span>
       </div>
     </div>
@@ -272,9 +272,9 @@
       <div class="control-group-title">自动换行</div>
       <div class="form-row">
         <label>启用</label>
-        <input type="checkbox" id="autoWrap"/>
+        <input id="autoWrap" type="checkbox"/>
         <label style="min-width:auto;margin-left:12px;">最大宽度</label>
-        <input type="number" class="input-small" id="maxWidth" value="900" min="100" max="1080"/>
+        <input id="maxWidth" type="number" class="input-small" value="900" min="100" max="1080"/>
       </div>
       <div class="form-row" style="margin-top:4px;">
         <span style="font-size:11px;color:var(--text-3);">开启后，超长文字会按最大宽度自动折行，换行符仍然有效</span>
@@ -282,18 +282,18 @@
     </div>
 
     <!-- 标题编辑 -->
-    <div class="control-group" id="editGroup" style="display:none;">
+    <div id="editGroup" class="control-group" style="display:none;">
       <div class="control-group-title">标题编辑 (当前)</div>
       <div class="form-row" style="flex-direction:column;align-items:stretch;gap:4px;">
         <label style="min-width:auto;">标题内容（支持换行）</label>
-        <textarea class="textarea-box" id="editTitle" rows="4"></textarea>
+        <textarea id="editTitle" class="textarea-box" rows="4"></textarea>
       </div>
       <div class="form-row" style="margin-top:8px;">
         <label>ID值</label>
-        <input type="text" id="editId" readonly style="background:var(--panel-2);"/>
+        <input id="editId" type="text" readonly style="background:var(--panel-2);"/>
       </div>
-      <button class="btn-block btn-blue" id="updateCurrentBtn" style="margin-top:10px;">更新当前预览</button>
-      <button class="btn-block" id="saveCsvBtn" style="margin-top:6px;background:linear-gradient(135deg, #FF6B81, #FF2442);display:none;">
+      <button id="updateCurrentBtn" class="btn-block btn-blue" style="margin-top:10px;">更新当前预览</button>
+      <button id="saveCsvBtn" class="btn-block" style="margin-top:6px;background:linear-gradient(135deg, #FF6B81, #FF2442);display:none;">
         💾 保存修改到CSV文件
       </button>
     </div>
@@ -308,14 +308,14 @@
           <option value="jpg">JPG（有损，体积小）</option>
         </select>
       </div>
-      <div class="form-row" id="jpgQualityRow" style="display:none;">
+      <div id="jpgQualityRow" class="form-row" style="display:none;">
         <label>质量</label>
-        <input type="range" id="jpgQuality" min="10" max="100" value="85" style="flex:1;"/>
+        <input id="jpgQuality" type="range" min="10" max="100" value="85" style="flex:1;"/>
         <span id="jpgQualityVal" style="font-size:12px;min-width:36px;text-align:right;">85%</span>
       </div>
-      <div class="form-row" id="jpgBgRow" style="display:none;">
+      <div id="jpgBgRow" class="form-row" style="display:none;">
         <label>底色</label>
-        <input type="color" id="jpgBgColor" value="#ffffff" style="width:36px;height:28px;padding:0;border:none;"/>
+        <input id="jpgBgColor" type="color" value="#ffffff" style="width:36px;height:28px;padding:0;border:none;"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:4px;">JPG 不支持透明，需设置底色</span>
       </div>
     </div>
@@ -325,7 +325,7 @@
       <div class="control-group-title">副标题设置</div>
       <div class="form-row">
         <label>启用</label>
-        <input type="checkbox" id="subEnabled"/>
+        <input id="subEnabled" type="checkbox"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:8px;">从CSV第三列读取，或手动输入</span>
       </div>
       <div class="form-row">
@@ -344,15 +344,15 @@
       </div>
       <div class="form-row">
         <label>颜色</label>
-        <input type="color" id="subFontColor" value="#666666"/>
+        <input id="subFontColor" type="color" value="#666666"/>
         <label style="min-width:auto;margin-left:8px;">大小</label>
-        <input type="number" class="input-small" id="subFontSize" value="60" min="12" max="500"/>
+        <input id="subFontSize" type="number" class="input-small" value="60" min="12" max="500"/>
       </div>
       <div class="form-row">
         <label>位置X</label>
-        <input type="number" class="input-small" id="subPosX" value="90"/>
+        <input id="subPosX" type="number" class="input-small" value="90"/>
         <label style="min-width:auto;margin-left:12px;">位置Y</label>
-        <input type="number" class="input-small" id="subPosY" value="600"/>
+        <input id="subPosY" type="number" class="input-small" value="600"/>
       </div>
       <div class="form-row">
         <label>对齐</label>
@@ -362,7 +362,7 @@
           <option value="right">右对齐</option>
         </select>
         <label style="min-width:auto;margin-left:8px;">加粗</label>
-        <input type="checkbox" id="subBoldEnabled"/>
+        <input id="subBoldEnabled" type="checkbox"/>
       </div>
     </div>
 
@@ -371,8 +371,8 @@
       <div class="control-group-title">水印设置</div>
       <div class="form-row">
         <label>启用</label>
-        <input type="checkbox" id="watermarkEnabled"/>
-        <input type="text" id="watermarkText" value="原创" placeholder="水印文字" style="flex:1;min-width:0;"/>
+        <input id="watermarkEnabled" type="checkbox"/>
+        <input id="watermarkText" type="text" value="原创" placeholder="水印文字" style="flex:1;min-width:0;"/>
       </div>
       <div class="form-row">
         <label>字体</label>
@@ -385,18 +385,18 @@
       </div>
       <div class="form-row">
         <label>颜色</label>
-        <input type="color" id="watermarkColor" value="#cccccc"/>
+        <input id="watermarkColor" type="color" value="#cccccc"/>
         <label style="min-width:auto;margin-left:8px;">大小</label>
-        <input type="number" class="input-small" id="watermarkFontSize" value="48" min="12" max="200"/>
+        <input id="watermarkFontSize" type="number" class="input-small" value="48" min="12" max="200"/>
       </div>
       <div class="form-row">
         <label>透明度</label>
-        <input type="range" id="watermarkOpacity" min="5" max="100" value="30" style="flex:1;"/>
+        <input id="watermarkOpacity" type="range" min="5" max="100" value="30" style="flex:1;"/>
         <span id="watermarkOpacityVal" style="font-size:12px;min-width:36px;text-align:right;">30%</span>
       </div>
       <div class="form-row">
         <label>旋转</label>
-        <input type="number" class="input-small" id="watermarkRotation" value="-30" min="-180" max="180"/>
+        <input id="watermarkRotation" type="number" class="input-small" value="-30" min="-180" max="180"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
         <label style="min-width:auto;margin-left:12px;">位置</label>
         <select id="watermarkPosition">
@@ -415,32 +415,32 @@
       <div class="control-group-title">
         <span class="icon">&#128248;</span> 贴图/小图片
       </div>
-      <div class="drop-zone" id="stickerDropZone" style="padding:10px;">
-        <button class="btn-block btn-blue" id="stickerBtn" style="font-size:13px;padding:8px 0;">上传贴图（支持PNG透明）</button>
-        <input type="file" class="file-input" id="stickerInput" accept="image/*" multiple/>
+      <div id="stickerDropZone" class="drop-zone" style="padding:10px;">
+        <button id="stickerBtn" class="btn-block btn-blue" style="font-size:13px;padding:8px 0;">上传贴图（支持PNG透明）</button>
+        <input id="stickerInput" type="file" class="file-input" accept="image/*" multiple/>
       </div>
-      <div class="deco-list" id="stickerList"></div>
-      <div class="deco-props" id="stickerProps">
+      <div id="stickerList" class="deco-list"></div>
+      <div id="stickerProps" class="deco-props">
         <div class="form-row">
           <label>位置X</label>
-          <input type="number" class="input-small" id="stickerPosX" value="100"/>
+          <input id="stickerPosX" type="number" class="input-small" value="100"/>
           <label style="min-width:auto;margin-left:8px;">位置Y</label>
-          <input type="number" class="input-small" id="stickerPosY" value="100"/>
+          <input id="stickerPosY" type="number" class="input-small" value="100"/>
         </div>
         <div class="form-row">
           <label>宽度</label>
-          <input type="number" class="input-small" id="stickerWidth" value="200" min="10" max="2000"/>
+          <input id="stickerWidth" type="number" class="input-small" value="200" min="10" max="2000"/>
           <label style="min-width:auto;margin-left:8px;">等比</label>
-          <input type="checkbox" id="stickerKeepRatio" checked/>
+          <input id="stickerKeepRatio" type="checkbox" checked/>
         </div>
         <div class="form-row">
           <label>透明度</label>
-          <input type="range" id="stickerOpacity" min="0" max="100" value="100" style="flex:1;"/>
+          <input id="stickerOpacity" type="range" min="0" max="100" value="100" style="flex:1;"/>
           <span id="stickerOpacityVal" style="font-size:12px;min-width:36px;text-align:right;">100%</span>
         </div>
         <div class="form-row">
           <label>旋转</label>
-          <input type="number" class="input-small" id="stickerRotation" value="0" min="-180" max="180"/>
+          <input id="stickerRotation" type="number" class="input-small" value="0" min="-180" max="180"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
         </div>
       </div>
@@ -452,27 +452,27 @@
       <div class="control-group-title">
         <span class="icon">&#128522;</span> Emoji 表情
       </div>
-      <div class="emoji-grid" id="emojiGrid"></div>
-      <div class="deco-list" id="emojiList" style="margin-top:8px;"></div>
-      <div class="deco-props" id="emojiProps">
+      <div id="emojiGrid" class="emoji-grid"></div>
+      <div id="emojiList" class="deco-list" style="margin-top:8px;"></div>
+      <div id="emojiProps" class="deco-props">
         <div class="form-row">
           <label>位置X</label>
-          <input type="number" class="input-small" id="emojiPosX" value="100"/>
+          <input id="emojiPosX" type="number" class="input-small" value="100"/>
           <label style="min-width:auto;margin-left:8px;">位置Y</label>
-          <input type="number" class="input-small" id="emojiPosY" value="100"/>
+          <input id="emojiPosY" type="number" class="input-small" value="100"/>
         </div>
         <div class="form-row">
           <label>大小</label>
-          <input type="number" class="input-small" id="emojiSize" value="80" min="12" max="500"/>
+          <input id="emojiSize" type="number" class="input-small" value="80" min="12" max="500"/>
         </div>
         <div class="form-row">
           <label>透明度</label>
-          <input type="range" id="emojiOpacity" min="0" max="100" value="100" style="flex:1;"/>
+          <input id="emojiOpacity" type="range" min="0" max="100" value="100" style="flex:1;"/>
           <span id="emojiOpacityVal" style="font-size:12px;min-width:36px;text-align:right;">100%</span>
         </div>
         <div class="form-row">
           <label>旋转</label>
-          <input type="number" class="input-small" id="emojiRotation" value="0" min="-180" max="180"/>
+          <input id="emojiRotation" type="number" class="input-small" value="0" min="-180" max="180"/>
         <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
         </div>
       </div>
@@ -480,7 +480,7 @@
 
     <!-- 一键加载示例 -->
     <div class="control-group" style="border-bottom:none;">
-      <button class="btn-block" id="sampleBtn" style="background: linear-gradient(135deg, #FF2442, #FF6B81);">
+      <button id="sampleBtn" class="btn-block" style="background: linear-gradient(135deg, #FF2442, #FF6B81);">
         一键加载示例数据，快速体验
       </button>
     </div>
@@ -494,8 +494,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useToast } from '../composables/useToast.js';
-import html2canvas from 'html2canvas';
-import JSZip from 'jszip';
+
 
 const containerRef = ref(null);
 const toast = useToast();
@@ -517,7 +516,6 @@ let csvRawHeaders = [];  // 原始 CSV 列头（用于列映射）
 let csvFileName = '';     // 导入的 CSV 文件名
 let csvEncoding = 'utf-8'; // 导入的 CSV 编码
 let bgImage = null;      // 当前选中的 Image 对象
-let bgFileName = '';     // 背景图文件名
 let bgTemplates = [];    // [{id, img: Image, src: dataUrl, name}] 上传的背景模板列表
 let activeBgId = null;   // 当前激活的背景 ID
 let activePresetId = null; // 当前激活的预设模板 ID
@@ -538,11 +536,6 @@ let dragDecoOrigX = 0, dragDecoOrigY = 0;    // 装饰元素原始坐标
 
 // DOM 引用
 const $ = id => document.getElementById(id);
-
-// ===================== Toast 通知系统 =====================
-function showToast(message) {
-  toast.show(message);
-}
 
 // ===================== 防抖工具 =====================
 function debounce(fn, delay) {
@@ -604,10 +597,6 @@ function readTextFileEx(file) {
     reader.onerror = reject;
     reader.readAsArrayBuffer(file);
   });
-}
-
-function readTextFile(file) {
-  return readTextFileEx(file).then(r => r.text);
 }
 
 function loadImage(src) {
@@ -686,11 +675,6 @@ function parseCSVWithHeaders(text) {
     }
   }
   return { headers: headers.map(h => h.trim()), data: result };
-}
-
-// 兼容旧的 parseCSV
-function parseCSV(text) {
-  return parseCSVWithHeaders(text).data;
 }
 
 function splitCSVLine(line) {
@@ -1010,7 +994,6 @@ function selectBgTemplate(id) {
   activeBgId = id;
   activePresetId = null;
   bgImage = tpl.img;
-  bgFileName = tpl.name;
   $('bgFileName').textContent = '当前: ' + tpl.name;
   updateTemplatePreview();
   renderBgTemplateGrid();
@@ -1025,7 +1008,6 @@ function removeBgTemplate(id, ev) {
   if (activeBgId === id) {
     activeBgId = null;
     bgImage = null;
-    bgFileName = '';
     $('bgFileName').textContent = '';
     $('templateImg').style.display = 'none';
     $('templatePlaceholder').style.display = '';
@@ -1101,7 +1083,6 @@ function selectPreset(id) {
   const dataUrl = generatePresetDataUrl(preset);
   loadImage(dataUrl).then(img => {
     bgImage = img;
-    bgFileName = preset.name;
     $('bgFileName').textContent = '当前: ' + preset.name + '（预设）';
     updateTemplatePreview();
     renderBgTemplateGrid();
@@ -1279,7 +1260,6 @@ $('watermarkOpacity').addEventListener('input', () => {
 });
 
 // ===================== CSV 列映射 =====================
-let csvAllRows = []; // 保存所有原始行数据，用于重新映射
 
 function setupColMapping(headers) {
   const group = $('colMappingGroup');
@@ -1309,9 +1289,7 @@ function setupColMapping(headers) {
   if (titleIdx >= 0) $('colTitle').value = titleIdx;
   if (subIdx >= 0) $('colSubtitle').value = subIdx;
 
-  // 保存原始行数据
-  csvAllRows = csvData.map(item => item._raw || {});
-}
+  }
 
 // 应用列映射
 $('applyMappingBtn').addEventListener('click', () => {
@@ -1479,7 +1457,6 @@ $('saveCsvBtn').addEventListener('click', () => {
   let blob;
   if (csvEncoding === 'gbk') {
     // GBK 编码：使用 TextEncoder 生成 GBK 字节
-    const encoder = new TextEncoder();
     // 注意：TextEncoder 只支持 UTF-8，GBK 需要用 TextDecoder 反向操作
     // 方案：直接用 UTF-8 输出并加 BOM，Excel 兼容性更好
     // 但如果用户明确需要 GBK，使用下面的方式
@@ -1804,19 +1781,6 @@ function concatBytes(parts) {
   for (const p of parts) { out.set(p, pos); pos += p.length; }
   return out;
 }
-
-// 构建一个小端 Uint8Array（按字节数组 spec）
-function makeBytes(...vals) {
-  const b = [];
-  for (const v of vals) {
-    if (v instanceof Uint8Array) for (const x of v) b.push(x);
-    else b.push(v & 0xFF);
-  }
-  return new Uint8Array(b);
-}
-
-function u16(n) { return [n & 0xFF, (n >>> 8) & 0xFF]; }
-function u32(n) { return [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF]; }
 
 // 主函数：生成合法 ZIP Blob
 // 构建单条 ZIP entry（目录 or 文件），返回 { local, cd } Uint8Array

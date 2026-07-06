@@ -75,7 +75,7 @@
     </main>
 
     <!-- Toast notification -->
-    <div :class="['toast', toast.type, { show: toast.message }]" ref="toastRef">{{ toast.message }}</div>
+    <div ref="toastRef" :class="['toast', toast.type, { show: toast.message }]">{{ toast.message }}</div>
 
     <!-- Global image preview -->
     <ImagePreview ref="imagePreviewRef" />

@@ -481,6 +481,26 @@ ipcMain.handle('fs:writeFile', async (event, filePath, data) => {
     return feishuCache.token;
   }
 
+  // Resolve wiki token to actual bitable app token
+  ipcMain.handle('feishu:resolveWiki', async (event, { appId, appSecret, wikiToken } = {}) => {
+    try {
+      const token = await getFeishuToken(appId, appSecret);
+      const r = await fetch(`${FEISHU_BASE}/wiki/v2/spaces/get_node`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ token: wikiToken })
+      });
+      const data = await r.json();
+      if (data.code !== 0) return { success: false, error: data.msg || `code=${data.code}`, raw: data };
+      const node = data.data?.node;
+      if (!node) return { success: false, error: 'Wiki 节点不存在' };
+      if (node.obj_type !== 'bitable') return { success: false, error: `Wiki 节点类型不是多维表格（当前类型: ${node.obj_type}）` };
+      return { success: true, appToken: node.obj_token, title: node.title };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('feishu:listRecords', async (event, { appId, appSecret, appToken, tableId, pageSize = 500 } = {}) => {
     try {
       const token = await getFeishuToken(appId, appSecret);

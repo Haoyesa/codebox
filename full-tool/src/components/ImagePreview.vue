@@ -6,7 +6,7 @@
           <img :src="src" :alt="alt" class="preview-img" />
           <div class="preview-toolbar">
             <span class="preview-name">{{ name }}</span>
-            <button class="preview-close" @click="close" :title="i18n.ImagePreview.close">
+            <button class="preview-close" :title="i18n.ImagePreview.close" @click="close">
               <i data-lucide="x"></i>
             </button>
           </div>

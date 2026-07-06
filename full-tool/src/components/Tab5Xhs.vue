@@ -32,7 +32,7 @@
           </button>
           <button class="btn btn-warn" :disabled="!state.isRunning" @click="stopDownload">停止</button>
           <span class="muted" style="margin-left: 6px;">
-            <span class="pulse-dot" :class="state.dotClass"></span>
+            <PulseDot :color="state.dotClass" />
             <span style="margin-left: 6px;">{{ state.statusText }}</span>
           </span>
         </div>
@@ -46,9 +46,7 @@
                 <span class="task-status" :class="'st-' + t.status">{{ statusLabel(t.status) }}</span>
                 <span class="task-name" :title="t.url">{{ t.title || t.url }}</span>
               </div>
-              <div v-if="t.status === 'running' || t.status === 'done'" class="progress-bar" style="margin-top: 4px;">
-                <div class="fill" :style="{ width: t.percent + '%' }"></div>
-              </div>
+              <ProgressBar v-if="t.status === 'running' || t.status === 'done'" :percent="t.percent" slim style="margin-top: 4px;" />
               <div v-if="t.message" class="task-msg">{{ t.message }}</div>
               <div v-if="t.status === 'error'" style="margin-top: 4px;">
                 <button class="btn btn-sm" @click="retryTask(t)">重试</button>
@@ -63,10 +61,10 @@
           <span class="browser-status mono">内置浏览器</span>
           <span class="muted" style="margin-left: 8px;">{{ state.isRunning ? '抓取中' : '待机' }}</span>
           <div class="row" style="margin-left: auto; gap: 6px;">
-            <button class="btn-icon" @click="browserBack" title="后退"><i data-lucide="arrow-left"></i></button>
-            <button class="btn-icon" @click="browserRefresh" title="刷新"><i data-lucide="rotate-cw"></i></button>
-            <button class="btn-icon" @click="browserHome" title="首页"><i data-lucide="home"></i></button>
-            <button class="btn btn-sm" @click="manualParse" title="重新注入解析脚本">手动解析</button>
+            <button class="btn-icon" title="后退" @click="browserBack"><i data-lucide="arrow-left"></i></button>
+            <button class="btn-icon" title="刷新" @click="browserRefresh"><i data-lucide="rotate-cw"></i></button>
+            <button class="btn-icon" title="首页" @click="browserHome"><i data-lucide="home"></i></button>
+            <button class="btn btn-sm" title="重新注入解析脚本" @click="manualParse">手动解析</button>
           </div>
         </div>
         <div class="browser-frame">
@@ -91,6 +89,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useToast } from '../composables/useToast.js';
+import ProgressBar from './ProgressBar.vue';
+import PulseDot from './PulseDot.vue';
 
 const toast = useToast();
 const urlText = ref('');
@@ -354,10 +354,10 @@ async function fetchAsBuffer(url) {
 }
 
 function browserBack() {
-  try { webviewRef.value?.goBack(); } catch (_) {}
+  try { webviewRef.value?.goBack(); } catch (_) { /* ignore */ }
 }
 function browserRefresh() {
-  try { webviewRef.value?.reload(); } catch (_) {}
+  try { webviewRef.value?.reload(); } catch (_) { /* ignore */ }
 }
 function browserHome() {
   browserUrl.value = 'https://www.xiaohongshu.com';

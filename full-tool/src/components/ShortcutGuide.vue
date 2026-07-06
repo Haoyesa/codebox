@@ -6,7 +6,7 @@
           <div class="guide-head">
             <i data-lucide="command"></i>
             <span class="guide-title">快捷键</span>
-            <button class="guide-close-btn" @click="close" title="关闭 (ESC)">
+            <button class="guide-close-btn" title="关闭 (ESC)" @click="close">
               <i data-lucide="x"></i>
             </button>
           </div>

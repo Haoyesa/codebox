@@ -8,12 +8,12 @@
           <label class="form-label">App ID</label>
           <div class="form-input-group">
             <input
-              :type="showAppId ? 'text' : 'password'"
               v-model="appId"
+              :type="showAppId ? 'text' : 'password'"
               placeholder="cli_xxxxxxxxxxxxxxxx"
               class="mono"
             />
-            <button class="btn-icon" @click="showAppId = !showAppId" :title="showAppId ? '隐藏' : '显示'">
+            <button class="btn-icon" :title="showAppId ? '隐藏' : '显示'" @click="showAppId = !showAppId">
               <i :data-lucide="showAppId ? 'eye-off' : 'eye'"></i>
             </button>
           </div>
@@ -22,22 +22,22 @@
           <label class="form-label">App Secret</label>
           <div class="form-input-group">
             <input
-              :type="showSecret ? 'text' : 'password'"
               v-model="appSecret"
+              :type="showSecret ? 'text' : 'password'"
               placeholder="应用密钥"
               class="mono"
             />
-            <button class="btn-icon" @click="showSecret = !showSecret" :title="showSecret ? '隐藏' : '显示'">
+            <button class="btn-icon" :title="showSecret ? '隐藏' : '显示'" @click="showSecret = !showSecret">
               <i :data-lucide="showSecret ? 'eye-off' : 'eye'"></i>
             </button>
           </div>
         </div>
         <div class="row" style="gap: 8px; margin-top: 4px;">
-          <button class="btn btn-sm" @click="verifyAuth" :disabled="state.isVerifying">
+          <button class="btn btn-sm" :disabled="state.isVerifying" @click="verifyAuth">
             <i data-lucide="check"></i>{{ state.isVerifying ? '验证中…' : '验证授权' }}
           </button>
           <span v-if="state.authOk" class="tag tag-green" style="margin-left: 4px;">
-            <span class="pulse-dot" style="background: var(--ok);"></span>已认证
+            <PulseDot />已认证
           </span>
           <span v-else-if="state.authError" class="tag tag-amber" style="margin-left: 4px;">
             失败：{{ state.authError }}
@@ -46,22 +46,22 @@
 
         <div class="form-row">
           <label class="form-label">表格链接</label>
-          <input type="text" v-model="tableUrl" placeholder="多维表格链接" />
+          <input v-model="tableUrl" type="text" placeholder="多维表格链接" />
         </div>
 
         <div class="form-row">
           <label class="form-label">飞书附件字段</label>
-          <input type="text" v-model="attachField" placeholder="内容页图片" />
+          <input v-model="attachField" type="text" placeholder="内容页图片" />
         </div>
 
         <div class="form-row form-row-2col">
           <div>
             <label class="form-label">表格起始行</label>
-            <input type="number" v-model.number="rowStart" min="1" />
+            <input v-model.number="rowStart" type="number" min="1" />
           </div>
           <div>
             <label class="form-label">表格结束行</label>
-            <input type="number" v-model.number="rowEnd" min="1" />
+            <input v-model.number="rowEnd" type="number" min="1" />
           </div>
         </div>
       </div>
@@ -87,17 +87,17 @@
         <div v-else class="folder-list">
           <div v-for="(f, i) in folders" :key="f.id" class="folder-item">
             <span class="folder-idx mono">#{{ i + 1 }}</span>
-            <input type="text" v-model="f.path" placeholder="选择文件夹" class="path-input mono" readonly />
+            <input v-model="f.path" type="text" placeholder="选择文件夹" class="path-input mono" readonly />
             <button class="btn btn-sm" @click="pickFolderPath(f)">
               <i data-lucide="folder-open"></i>选择
             </button>
             <label class="checkbox" style="margin-left: 8px;">
-              <input type="checkbox" v-model="f.recursive" />
+              <input v-model="f.recursive" type="checkbox" />
               <span class="box"></span>递归
             </label>
-            <input type="number" v-model.number="f.perRow" min="1" max="20" class="num" title="每行写入图片数" />
+            <input v-model.number="f.perRow" type="number" min="1" max="20" class="num" title="每行写入图片数" />
             <span class="muted" style="font-size: 12px;">张/行</span>
-            <button class="btn-icon" @click="removeFolder(f.id)" title="移除">
+            <button class="btn-icon" title="移除" @click="removeFolder(f.id)">
               <i data-lucide="x"></i>
             </button>
           </div>
@@ -111,29 +111,23 @@
         </button>
         <button class="btn btn-warn" :disabled="!state.isUploading" @click="cancelUpload">取消</button>
         <span class="muted" style="margin-left: 8px;">
-          <span class="pulse-dot" :class="state.dotClass"></span>
+          <PulseDot :color="state.dotClass" />
           <span style="margin-left: 6px;">{{ state.statusText }}</span>
         </span>
       </div>
 
       <div v-if="uploadProgress.status !== 'idle'" class="upload-progress">
-        <div class="progress-bar-exp">
-          <div class="progress-fill-exp" :style="{ width: (uploadProgress.total ? uploadProgress.current / uploadProgress.total * 100 : 0) + '%' }"></div>
-        </div>
+        <ProgressBar :percent="uploadProgress.total ? uploadProgress.current / uploadProgress.total * 100 : 0" />
         <div class="row-spread" style="font-size: 12px; color: var(--text-2); margin-top: 6px;">
           <span>{{ uploadProgress.status === 'running' ? '上传中…' : '完成' }}</span>
           <span class="mono">{{ uploadProgress.current }}/{{ uploadProgress.total }}</span>
         </div>
       </div>
 
-      <div v-if="!appId || !appSecret" class="empty-state" style="margin-top: 16px; border-top: 1px solid var(--border-2); padding-top: 24px;">
-        <i data-lucide="settings"></i>
-        <p>配置飞书应用信息后开始上传</p>
-        <p class="muted" style="font-size:12px;margin-top:4px;">填写 App ID 和 App Secret 并验证通过后即可使用</p>
-      </div>
+      <EmptyState v-if="!appId || !appSecret" icon="settings" title="配置飞书应用信息后开始上传" subtitle="填写 App ID 和 App Secret 并验证通过后即可使用" style="margin-top: 16px; border-top: 1px solid var(--border-2); padding-top: 24px;" />
 
       <div v-if="state.progress.total > 0" style="margin-top: 12px;">
-        <div class="progress-bar"><div class="fill" :style="{ width: state.progress.percent + '%' }"></div></div>
+        <ProgressBar :percent="state.progress.percent" />
         <div class="row-spread" style="font-size: 12px; color: var(--text-2); margin-top: 6px;">
           <span>{{ state.progress.label }}</span>
           <span class="mono">{{ state.progress.done }}/{{ state.progress.total }}</span>
@@ -153,6 +147,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useToast } from '../composables/useToast.js';
+import ProgressBar from './ProgressBar.vue';
+import EmptyState from './EmptyState.vue';
+import PulseDot from './PulseDot.vue';
 const toast = useToast();
 
 const appId = ref('');
@@ -232,13 +229,37 @@ async function pickFolderPath(folder) {
   }
 }
 
-function parseBitable(url) {
+async function parseBitable(url) {
   // 飞书表格链接常见形式：
   // https://xxx.feishu.cn/base/{appToken}?table={tableId}
-  // https://xxx.feishu.cn/wiki/{wikiToken} ... 这种需要先 wiki resolve
+  // https://xxx.feishu.cn/wiki/{wikiToken}?table={tableId}
   try {
     const u = new URL(url);
     const parts = u.pathname.split('/').filter(Boolean);
+    // Wiki 链接: https://xxx.feishu.cn/wiki/{wikiToken}
+    const wikiIdx = parts.indexOf('wiki');
+    if (wikiIdx >= 0) {
+      const wikiToken = parts[wikiIdx + 1];
+      if (!wikiToken) return null;
+      if (!window.electronAPI?.feishuResolveWiki) {
+        toast.show('当前环境不支持 Wiki 链接解析', 'error');
+        return null;
+      }
+      const res = await window.electronAPI.feishuResolveWiki({
+        appId: appId.value, appSecret: appSecret.value, wikiToken
+      });
+      if (!res?.success) {
+        toast.show(res?.error || 'Wiki 链接解析失败', 'error');
+        return null;
+      }
+      const tableId = u.searchParams.get('table') || u.searchParams.get('view');
+      if (!tableId) {
+        toast.show('Wiki 链接缺少 table/view 参数', 'error');
+        return null;
+      }
+      return { appToken: res.appToken, tableId };
+    }
+    // 普通 Bitable 链接
     const baseIdx = parts.indexOf('base');
     if (baseIdx < 0) return null;
     const appToken = parts[baseIdx + 1];
@@ -254,7 +275,7 @@ async function startUpload() {
     toast.show('请补全授权码、表格链接、文件夹', 'warn');
     return;
   }
-  const bitable = parseBitable(tableUrl.value);
+  const bitable = await parseBitable(tableUrl.value);
   if (!bitable) {
     toast.show('无法解析表格链接，请检查格式', 'error');
     return;
@@ -469,16 +490,4 @@ onMounted(async () => {
 .log-line.info .log-msg { color: var(--text-2); }
 
 .upload-progress { margin-top: 12px; }
-.progress-bar-exp {
-  height: 6px;
-  background: var(--panel-2);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.progress-fill-exp {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--neon-magenta));
-  border-radius: 3px;
-  transition: width .3s ease;
-}
 </style>

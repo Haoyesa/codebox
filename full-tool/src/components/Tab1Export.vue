@@ -83,11 +83,7 @@
             </div>
           </div>
         </div>
-        <div v-else class="empty-state" style="min-height: 140px;">
-          <i data-lucide="file-plus"></i>
-          <p>选择或拖拽 PDF/DOCX/PPT/XLS 文件开始导出</p>
-          <p style="font-size:12px;margin-top:4px;color:var(--text-3);">支持单个文件、批量选择或整个文件夹</p>
-        </div>
+        <EmptyState v-else icon="file-plus" title="选择或拖拽 PDF/DOCX/PPT/XLS 文件开始导出" subtitle="支持单个文件、批量选择或整个文件夹" min-height="140px" />
 
         <div class="action-row">
           <span class="export-status" :class="statusClass">
@@ -123,14 +119,14 @@
             <div>
               <div class="label">导出前几页</div>
               <input
-                type="text"
                 v-model="settings.pages"
+                type="text"
                 placeholder="留空=全部"
               />
             </div>
             <div class="checkbox-group">
               <label class="checkbox">
-                <input type="checkbox" v-model="settings.subdir" />
+                <input v-model="settings.subdir" type="checkbox" />
                 <span class="box"></span>
                 输出到子文件夹
               </label>
@@ -171,8 +167,8 @@
           <button
             class="secondary"
             :disabled="!canStart || state.isExporting"
-            @click="exportFullPreview"
             title="把当前文件所有页面拼成一张长图，输出为 -preview.png"
+            @click="exportFullPreview"
           >
             <i data-lucide="layers" style="width:16px;height:16px"></i>
             输出整张预览图
@@ -180,9 +176,7 @@
         </div>
 
         <div v-if="state.isExporting" class="progress-section">
-          <div class="progress-bar">
-            <div class="fill" :style="{ width: state.progress + '%' }"></div>
-          </div>
+          <ProgressBar :percent="state.progress" />
           <div class="progress-info">
             <span>{{ state.currentFile }}</span>
             <span>{{ state.doneCount }}/{{ state.totalCount }}</span>
@@ -194,11 +188,9 @@
           <div class="progress-header">
             <span>{{ exportProgress.status === 'running' ? '导出中' : exportProgress.status === 'done' ? '完成' : '出错' }}</span>
             <span class="mono">{{ exportProgress.current }}/{{ exportProgress.total }}</span>
-            <button class="btn btn-ghost btn-xs" @click="closeProgress" title="关闭">X</button>
+            <button class="btn btn-ghost btn-xs" title="关闭" @click="closeProgress">X</button>
           </div>
-          <div class="progress-bar-exp">
-            <div class="progress-fill-exp" :style="{ width: (exportProgress.total ? exportProgress.current / exportProgress.total * 100 : 0) + '%' }"></div>
-          </div>
+          <ProgressBar :percent="exportProgress.total ? exportProgress.current / exportProgress.total * 100 : 0" />
           <div v-if="exportLog.length" class="export-log">
             <div v-for="(log, i) in exportLog" :key="i" class="export-log-item">
               <span class="mono">{{ log.time }}</span>
@@ -244,10 +236,12 @@ import * as mammoth from 'mammoth';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { pdfToPngs } from '../utils/pdfToPngs.js';
-import { formatSize, truncatePath, getExt, getMimeFromPath, safeOutputDir, getBasename } from '../utils/file.js';
+import { formatSize, truncatePath, getExt, safeOutputDir, getBasename } from '../utils/file.js';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
 import { logger } from '../composables/useLogger.js';
+import ProgressBar from './ProgressBar.vue';
+import EmptyState from './EmptyState.vue';
 
 const toast = useToast();
 
@@ -424,7 +418,7 @@ function loadRecentFiles() {
 function saveRecentFiles() {
   try {
     localStorage.setItem('fulltool_recent_files', JSON.stringify(recentFiles.value));
-  } catch (_) {}
+  } catch (_) { /* ignore */ }
 }
 
 function addRecentFiles(paths) {
@@ -691,7 +685,7 @@ async function startExport() {
             }
             // Tidy up: remove the temp PDF so the output dir only has the
             // images the user actually asked for.
-            try { await window.electronAPI.unlink(loRes.outputPath); } catch (_) {}
+            try { await window.electronAPI.unlink(loRes.outputPath); } catch (_) { /* ignore */ }
           }
         }
       }
@@ -912,7 +906,7 @@ async function exportFullPreview() {
         if (!loRes || !loRes.outputPath) throw new Error('LibreOffice 转换失败');
         const pngs = await pdfToPngs({ pdfPath: loRes.outputPath, pdfBytes: loRes.pdfBytes, scale });
         for (const p of pngs) pages.push({ width: p.width, height: p.height, blob: p.blob });
-        try { await window.electronAPI.unlink(loRes.outputPath); } catch (_) {}
+        try { await window.electronAPI.unlink(loRes.outputPath); } catch (_) { /* ignore */ }
       }
 
       if (pages.length === 0) throw new Error('未生成任何页面');
@@ -1328,20 +1322,6 @@ onMounted(async () => {
 .export-progress .progress-header .btn-xs:hover {
   color: var(--text);
   background: var(--panel-3);
-}
-
-.progress-bar-exp {
-  height: 6px;
-  background: var(--panel-2);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill-exp {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--neon-magenta));
-  border-radius: 3px;
-  transition: width .3s ease;
 }
 
 .export-log {

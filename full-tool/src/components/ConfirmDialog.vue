@@ -4,9 +4,9 @@
       <div v-if="visible" class="confirm-overlay" @click.self="onCancel">
         <div class="confirm-box">
           <div class="confirm-head">
-            <i data-lucide="alert-circle" v-if="type === 'warning'"></i>
-            <i data-lucide="help-circle" v-else-if="type === 'confirm'"></i>
-            <i data-lucide="info" v-else></i>
+            <i v-if="type === 'warning'" data-lucide="alert-circle"></i>
+            <i v-else-if="type === 'confirm'" data-lucide="help-circle"></i>
+            <i v-else data-lucide="info"></i>
             <span class="confirm-title">{{ title }}</span>
           </div>
           <div class="confirm-body">{{ message }}</div>
@@ -34,6 +34,7 @@ const type = ref('confirm'); // confirm | warning | danger
 const confirmText = ref(i18n.ConfirmDialog.ok);
 const cancelText = ref(i18n.ConfirmDialog.cancel);
 let resolveFn = null;
+// eslint-disable-next-line no-unused-vars
 let rejectFn = null;
 
 function open(options = {}) {

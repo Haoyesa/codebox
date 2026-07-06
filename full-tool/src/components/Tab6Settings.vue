@@ -5,11 +5,11 @@
       <div class="settings-search">
         <i data-lucide="search" style="width:14px;height:14px;color:var(--text-3)"></i>
         <input
-          type="text"
           v-model="searchQuery"
+          type="text"
           placeholder="搜索设置项…"
         />
-        <button v-if="searchQuery" class="btn-icon btn-xs" @click="searchQuery = ''" title="清空">
+        <button v-if="searchQuery" class="btn-icon btn-xs" title="清空" @click="searchQuery = ''">
           <i data-lucide="x" style="width:12px;height:12px"></i>
         </button>
       </div>
@@ -30,16 +30,16 @@
         </div>
         <div class="input-with-btn">
           <input
-            type="text"
             v-model="loPath"
+            type="text"
             placeholder="自动检测或手动选择 soffice.exe"
             class="mono"
             readonly
           />
-          <button class="btn btn-sm" @click="selectLOPath" title="选择 soffice.exe">
+          <button class="btn btn-sm" title="选择 soffice.exe" @click="selectLOPath">
             <i data-lucide="folder-open"></i>浏览
           </button>
-          <button class="btn btn-sm btn-ghost" @click="detectLO" title="重新检测" :disabled="loChecking">
+          <button class="btn btn-sm btn-ghost" title="重新检测" :disabled="loChecking" @click="detectLO">
             <i data-lucide="scan-search"></i>{{ loChecking ? '检测中' : '检测' }}
           </button>
         </div>
@@ -58,8 +58,8 @@
         </div>
         <div class="input-with-btn">
           <input
-            type="text"
             v-model="outputDir"
+            type="text"
             placeholder="选择默认导出目录"
             class="mono"
             readonly
@@ -76,7 +76,7 @@
 
       <!-- 保存按钮 -->
       <div class="row mt-14" style="justify-content:flex-end;">
-        <button class="btn btn-primary" @click="savePaths" :disabled="pathSaving">
+        <button class="btn btn-primary" :disabled="pathSaving" @click="savePaths">
           <i data-lucide="save"></i>{{ pathSaving ? '保存中' : '保存路径设置' }}
         </button>
       </div>
@@ -92,19 +92,19 @@
           <span class="form-label">授权密钥</span>
           <div class="input-with-btn">
             <input
-              :type="showKey ? 'text' : 'password'"
               v-model="authKey"
+              :type="showKey ? 'text' : 'password'"
               placeholder="LLF-XXXX-XXXX-XXXX"
               class="mono"
             />
-            <button class="btn-icon" @click="showKey = !showKey" :title="showKey ? '隐藏' : '显示'">
+            <button class="btn-icon" :title="showKey ? '隐藏' : '显示'" @click="showKey = !showKey">
               <i :data-lucide="showKey ? 'eye-off' : 'eye'"></i>
             </button>
           </div>
         </div>
 
         <div class="row gap-8 mt-10">
-          <button class="btn btn-sm" @click="verifyKey" :disabled="!authKey">
+          <button class="btn btn-sm" :disabled="!authKey" @click="verifyKey">
             <i data-lucide="check"></i>验证
           </button>
           <button class="btn btn-sm btn-ghost" @click="clearKey">清除</button>
@@ -131,8 +131,8 @@
         <div class="row gap-8 mt-10">
           <button
             class="btn btn-sm"
-            @click="checkUpdate"
             :disabled="updateStatus === 'checking'"
+            @click="checkUpdate"
           >
             <i data-lucide="refresh-cw" :class="{ 'spin': updateStatus === 'checking' }"></i>
             {{ updateStatus === 'checking' ? '检查中...' : '检查更新' }}
@@ -199,7 +199,7 @@
         </h3>
         <div class="row gap-8">
           <label class="checkbox" title="自动滚动到底部">
-            <input type="checkbox" v-model="autoScroll" />
+            <input v-model="autoScroll" type="checkbox" />
             <span class="box"></span>
             自动滚动
           </label>
@@ -217,17 +217,14 @@
           </button>
         </div>
       </div>
-      <div class="log-area" ref="logAreaRef">
-        <div v-if="filteredLogs.length === 0" class="empty-state" style="padding: 28px 0;">
-          <i data-lucide="inbox"></i>
-          <p>暂无日志</p>
-        </div>
+      <div ref="logAreaRef" class="log-area">
+        <EmptyState v-if="filteredLogs.length === 0" title="暂无日志" style="padding: 28px 0;" />
         <div v-else class="log-list">
           <div v-for="(l, i) in filteredLogs" :key="i" :class="['log-row', 'log-' + l.level]">
             <span class="log-time mono">{{ l.time }}</span>
             <span class="log-level">{{ levelLabel(l.level) }}</span>
             <span class="log-msg">{{ l.msg }}</span>
-            <button class="log-copy-btn" @click="copyLog(l)" title="复制">
+            <button class="log-copy-btn" title="复制" @click="copyLog(l)">
               <i data-lucide="copy" style="width:12px;height:12px;"></i>
             </button>
           </div>
@@ -253,6 +250,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } 
 import { useToast } from '../composables/useToast.js';
 import { useSettings, defaultSettings } from '../composables/useSettings.js';
 import { truncatePath } from '../utils/file.js';
+import EmptyState from './EmptyState.vue';
 
 const toast = useToast();
 const settings = useSettings();

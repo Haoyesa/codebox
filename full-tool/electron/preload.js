@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Feishu / Lark open platform (proxied through main to avoid CORS).
   feishuGetToken: (payload) => ipcRenderer.invoke('feishu:getToken', payload),
+  feishuResolveWiki: (payload) => ipcRenderer.invoke('feishu:resolveWiki', payload),
   feishuListRecords: (payload) => ipcRenderer.invoke('feishu:listRecords', payload),
   feishuUploadAttachment: (payload) => ipcRenderer.invoke('feishu:uploadAttachment', payload),
   feishuUpdateRecord: (payload) => ipcRenderer.invoke('feishu:updateRecord', payload),
