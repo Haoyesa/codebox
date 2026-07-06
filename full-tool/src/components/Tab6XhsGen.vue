@@ -124,7 +124,7 @@
         <input type="number" class="input-small" id="customHeight" value="1920" min="100" max="4096"/>
       </div>
       <div class="form-row" style="margin-top:4px;">
-        <span style="font-size:11px;color:#999;" id="sizeInfo">当前: 1080 × 1920 (9:16)</span>
+        <span style="font-size:11px;color:var(--text-3);" id="sizeInfo">当前: 1080 × 1920 (9:16)</span>
       </div>
     </div>
 
@@ -140,7 +140,7 @@
       </div>
       <!-- 已上传的背景模板列表 -->
       <div id="bgTemplateList" style="margin-top:8px;display:none;">
-        <div style="font-size:12px;color:#666;margin-bottom:6px;">已上传模板（点击选中）：</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;">已上传模板（点击选中）：</div>
         <div id="bgTemplateGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;"></div>
       </div>
     </div>
@@ -239,7 +239,7 @@
         <span id="textOpacityVal" style="font-size:12px;min-width:36px;text-align:right;">100%</span>
         <label style="min-width:auto;margin-left:12px;">旋转</label>
         <input type="number" class="input-small" id="textRotation" value="0" min="-180" max="180"/>
-        <span style="font-size:11px;color:#999;margin-left:2px;">°</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
       </div>
     </div>
 
@@ -263,7 +263,7 @@
       <div class="form-row" style="margin-top:6px;">
         <label>行间距</label>
         <input type="number" class="input-small" id="lineSpacing" value="120" min="0" max="200"/>
-        <span style="font-size:11px;color:#999;margin-left:4px;">多行标题时行与行的间距</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:4px;">多行标题时行与行的间距</span>
       </div>
     </div>
 
@@ -277,7 +277,7 @@
         <input type="number" class="input-small" id="maxWidth" value="900" min="100" max="1080"/>
       </div>
       <div class="form-row" style="margin-top:4px;">
-        <span style="font-size:11px;color:#999;">开启后，超长文字会按最大宽度自动折行，换行符仍然有效</span>
+        <span style="font-size:11px;color:var(--text-3);">开启后，超长文字会按最大宽度自动折行，换行符仍然有效</span>
       </div>
     </div>
 
@@ -290,7 +290,7 @@
       </div>
       <div class="form-row" style="margin-top:8px;">
         <label>ID值</label>
-        <input type="text" id="editId" readonly style="background:#f5f5f5;"/>
+        <input type="text" id="editId" readonly style="background:var(--panel-2);"/>
       </div>
       <button class="btn-block btn-blue" id="updateCurrentBtn" style="margin-top:10px;">更新当前预览</button>
       <button class="btn-block" id="saveCsvBtn" style="margin-top:6px;background:linear-gradient(135deg, #FF6B81, #FF2442);display:none;">
@@ -316,7 +316,7 @@
       <div class="form-row" id="jpgBgRow" style="display:none;">
         <label>底色</label>
         <input type="color" id="jpgBgColor" value="#ffffff" style="width:36px;height:28px;padding:0;border:none;"/>
-        <span style="font-size:11px;color:#999;margin-left:4px;">JPG 不支持透明，需设置底色</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:4px;">JPG 不支持透明，需设置底色</span>
       </div>
     </div>
 
@@ -326,7 +326,7 @@
       <div class="form-row">
         <label>启用</label>
         <input type="checkbox" id="subEnabled"/>
-        <span style="font-size:11px;color:#999;margin-left:8px;">从CSV第三列读取，或手动输入</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:8px;">从CSV第三列读取，或手动输入</span>
       </div>
       <div class="form-row">
         <label>字体</label>
@@ -397,7 +397,7 @@
       <div class="form-row">
         <label>旋转</label>
         <input type="number" class="input-small" id="watermarkRotation" value="-30" min="-180" max="180"/>
-        <span style="font-size:11px;color:#999;margin-left:2px;">°</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
         <label style="min-width:auto;margin-left:12px;">位置</label>
         <select id="watermarkPosition">
           <option value="center">居中</option>
@@ -441,7 +441,7 @@
         <div class="form-row">
           <label>旋转</label>
           <input type="number" class="input-small" id="stickerRotation" value="0" min="-180" max="180"/>
-          <span style="font-size:11px;color:#999;margin-left:2px;">°</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
         </div>
       </div>
       <div class="tag-hint" style="margin-top:8px;">上传PNG透明底贴图，可在画布上拖拽调整位置。支持多张贴图叠加。</div>
@@ -473,7 +473,7 @@
         <div class="form-row">
           <label>旋转</label>
           <input type="number" class="input-small" id="emojiRotation" value="0" min="-180" max="180"/>
-          <span style="font-size:11px;color:#999;margin-left:2px;">°</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:2px;">°</span>
         </div>
       </div>
     </div>
@@ -1722,7 +1722,7 @@ function initVirtualScroll() {
         if (thumbCache[i]) {
           thumb.innerHTML = `<img src="${thumbCache[i]}"><button class="dl-btn" data-idx="${i}">&#11015;</button>`;
         } else {
-          thumb.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:11px;">${i+1}</div>`;
+          thumb.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);font-size:11px;">${i+1}</div>`;
         }
 
         // 点击切换
@@ -3488,7 +3488,7 @@ onBeforeUnmount(() => {
   font-size: 20px;
   flex-shrink: 0;
   border-radius: 4px;
-  background: rgba(0,0,0,0.04);
+  background: var(--panel-2);
   overflow: hidden;
 }
 .xhs-gen-root .deco-item .deco-preview img {
@@ -3507,7 +3507,7 @@ onBeforeUnmount(() => {
 .xhs-gen-root .deco-item .deco-remove {
   width: 20px;
   height: 20px;
-  background: rgba(0,0,0,0.06);
+  background: var(--panel-2);
   border: none;
   border-radius: 4px;
   font-size: 12px;

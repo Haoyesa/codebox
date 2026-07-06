@@ -191,7 +191,7 @@
             </div>
           </div>
           <div class="row" style="gap: 8px; margin-top: 8px;">
-            <button class="btn btn-sm" @click="previewAll">预览</button>
+            <button class="btn btn-sm" @click="debouncedPreviewAll">预览</button>
             <button class="btn btn-sm btn-primary" @click="startGenerate" :disabled="!canGenerate || isGenerating">
               <i data-lucide="play"></i>{{ isGenerating ? '生成中 ' + genDone + '/' + genTotal : '开始生成' }}
             </button>
@@ -407,6 +407,8 @@ import { yieldToMain } from '../utils/format.js';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
 import { useUndoRedo } from '../composables/useUndoRedo.js';
+import { logger } from '../composables/useLogger.js';
+import { debounce } from '../composables/useLogger.js';
 
 const toast = useToast();
 
@@ -740,7 +742,7 @@ async function onDrop(e) {
       });
       addedCount++;
     } catch (err) {
-      console.error('Drop image failed:', err);
+      logger.error('Drop image failed:', err);
       toast.show('添加图片失败：' + file.name, 'error');
     }
   }
@@ -1333,6 +1335,9 @@ async function previewAll() {
     zoom.value = savedZoom;
   }
 }
+
+// Debounced version to prevent repeated rapid clicks
+const debouncedPreviewAll = debounce(previewAll, 500);
 
 function closePreview() {
   if (previewUrl.value) try { URL.revokeObjectURL(previewUrl.value); } catch (_) {}

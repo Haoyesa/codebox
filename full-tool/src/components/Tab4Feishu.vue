@@ -212,6 +212,7 @@ async function verifyAuth() {
     else { state.authOk = true; toast.show('飞书授权验证通过', 'success'); }
   } catch (e) {
     state.authError = e.message; state.authOk = false;
+    toast.show('授权验证失败: ' + e.message, 'error');
   } finally {
     state.isVerifying = false;
   }
@@ -222,9 +223,13 @@ async function pickFolderPath(folder) {
     toast.show('请在 Electron 版本中选择目录', 'warn');
     return;
   }
-  const r = await window.electronAPI.openDirectory();
-  if (r.canceled || !r.filePaths.length) return;
-  folder.path = r.filePaths[0];
+  try {
+    const r = await window.electronAPI.openDirectory();
+    if (r.canceled || !r.filePaths.length) return;
+    folder.path = r.filePaths[0];
+  } catch (err) {
+    toast.show('选择目录失败: ' + err.message, 'error');
+  }
 }
 
 function parseBitable(url) {
@@ -350,6 +355,7 @@ const r = await window.electronAPI.readDir(f.path, { recursive: !!f.recursive, e
           }
         } catch (e) {
           log('err', `${img.name} 失败：${e.message}`);
+          toast.show(`${img.name} 处理失败: ${e.message}`, 'error');
         }
       }
 

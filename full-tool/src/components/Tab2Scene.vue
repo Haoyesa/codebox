@@ -29,6 +29,10 @@
         <div class="canvas-inner" v-show="baseImg" ref="canvasInner">
           <canvas ref="baseCanvas" class="base-canvas"></canvas>
           <canvas ref="overlayCanvas" class="overlay-canvas"></canvas>
+          <div v-if="isLoadingBase" class="canvas-loading">
+            <span class="spinner-lg"></span>
+            <span class="loading-text">加载中...</span>
+          </div>
           <div
             v-for="corner in ['tl', 'tr', 'bl', 'br']"
             :key="corner"
@@ -193,6 +197,7 @@ import { Upload, Layers, Download, RefreshCcw, X, Image, FolderOutput } from 'lu
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
 import { useUndoRedo } from '../composables/useUndoRedo.js';
+import { throttle } from '../composables/useLogger.js';
 
 const toast = useToast();
 defineOptions({ inheritAttrs: false });
@@ -272,6 +277,7 @@ const zoom = ref(1);
 const outputDir = ref('');
 const isExporting = ref(false);
 const exportProgress = ref(0);
+const isLoadingBase = ref(false);
 
 const statusText = ref('第1步：上传一张场景图作为底图');
 
@@ -343,6 +349,9 @@ function renderOverlay() {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 }
+
+// Throttled version for drag operations to avoid excessive rendering
+const throttledRenderOverlay = throttle(renderOverlay, 16);
 
 function updateOverlayCanvasSize() {
   if (!overlayCanvas.value || !canvasWrap.value) return;
@@ -553,7 +562,7 @@ function onDrag(e) {
     ov.corners[dragCorner][0] = Math.max(0, Math.min(1, nx2));
     ov.corners[dragCorner][1] = Math.max(0, Math.min(1, ny2));
   }
-  renderOverlay();
+  throttledRenderOverlay();
   nextTick(updateCornerPositions);
   recordHistory();
 }
@@ -634,7 +643,7 @@ function onKeyArrow(e) {
     });
   }
 
-  renderOverlay();
+  throttledRenderOverlay();
   nextTick(updateCornerPositions);
 }
 
@@ -659,12 +668,14 @@ function selectOverlay(id) {
 function onBaseFile(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
+  isLoadingBase.value = true;
   baseName.value = file.name;
   if (baseImgUrl.value) { URL.revokeObjectURL(baseImgUrl.value); baseImgUrl.value = ''; }
   const url = URL.createObjectURL(file);
   baseImgUrl.value = url;
   const img = new window.Image();
   img.onload = function() {
+    isLoadingBase.value = false;
     baseImg.value = img;
     baseWidth.value = img.width;
     baseHeight.value = img.height;
@@ -680,6 +691,7 @@ function onBaseFile(e) {
     toast.show('底图已加载', 'success');
   };
   img.onerror = function() {
+    isLoadingBase.value = false;
     toast.show('底图加载失败', 'error');
   };
   img.src = url;
@@ -747,9 +759,13 @@ async function pickOutputDir() {
     if (d) outputDir.value = d;
     return;
   }
-  let r = await window.electronAPI.selectOutputDir();
-  if (!r.canceled && r.filePaths[0]) {
-    outputDir.value = r.filePaths[0];
+  try {
+    let r = await window.electronAPI.selectOutputDir();
+    if (!r.canceled && r.filePaths[0]) {
+      outputDir.value = r.filePaths[0];
+    }
+  } catch (err) {
+    toast.show('选择输出目录失败: ' + err.message, 'error');
   }
 }
 
@@ -977,6 +993,28 @@ onBeforeUnmount(function() {
   left: 0;
 }
 .overlay-canvas { pointer-events: none; }
+.canvas-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 20;
+}
+.spinner-lg {
+  width: 24px; height: 24px;
+  border: 3px solid var(--primary-soft);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text {
+  font-size: 12px;
+  color: var(--text-2);
+}
 .corner {
   position: absolute;
   width: 14px;
@@ -1170,4 +1208,6 @@ onBeforeUnmount(function() {
 @media (max-width: 900px) {
   .scn-grid { grid-template-columns: 1fr; }
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

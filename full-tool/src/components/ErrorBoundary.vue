@@ -2,24 +2,29 @@
   <slot v-if="!hasError" />
   <div v-else class="error-fallback">
     <i data-lucide="alert-triangle"></i>
-    <div class="error-title">组件加载出错</div>
+    <div class="error-title">{{ i18n.ErrorBoundary.title }}</div>
     <div class="error-msg">{{ errorMessage }}</div>
     <button class="btn btn-sm" @click="retry">
-      <i data-lucide="refresh-cw"></i>重试
+      <i data-lucide="refresh-cw"></i>{{ i18n.ErrorBoundary.retry }}
     </button>
   </div>
 </template>
 
 <script setup>
 import { ref, onErrorCaptured, nextTick } from 'vue';
+import { logger } from '../composables/useLogger.js';
+
+const i18n = {
+  ErrorBoundary: { title: '组件加载出错', unknown: '未知错误', retry: '重试' }
+};
 
 const hasError = ref(false);
 const errorMessage = ref('');
 
 onErrorCaptured((err) => {
   hasError.value = true;
-  errorMessage.value = err?.message || '未知错误';
-  console.error('[ErrorBoundary]', err);
+  errorMessage.value = err?.message || i18n.ErrorBoundary.unknown;
+  logger.error('[ErrorBoundary]', err);
   return false; // 阻止错误继续传播
 });
 

@@ -24,7 +24,7 @@
       <div class="setting-row">
         <div class="setting-label">
           <span>LibreOffice 路径</span>
-          <span :class="['tag', loStatus.found ? 'tag-green' : 'tag-amber']" style="font-size:11px;">
+          <span :class="['tag', loStatus.found ? 'tag-green' : 'tag-amber', 'fs-11']">
             {{ loStatus.found ? '已找到' : '未配置' }}
           </span>
         </div>
@@ -51,10 +51,10 @@
       </div>
 
       <!-- 默认输出目录 -->
-      <div class="setting-row" style="margin-top:14px;">
+      <div class="setting-row mt-14">
         <div class="setting-label">
           <span>默认输出目录</span>
-          <span v-if="outputDir" class="tag tag-blue" style="font-size:11px;">已设置</span>
+          <span v-if="outputDir" class="tag tag-blue fs-11">已设置</span>
         </div>
         <div class="input-with-btn">
           <input
@@ -75,7 +75,7 @@
       </div>
 
       <!-- 保存按钮 -->
-      <div class="row" style="margin-top:14px; justify-content:flex-end;">
+      <div class="row mt-14" style="justify-content:flex-end;">
         <button class="btn btn-primary" @click="savePaths" :disabled="pathSaving">
           <i data-lucide="save"></i>{{ pathSaving ? '保存中' : '保存路径设置' }}
         </button>
@@ -83,7 +83,7 @@
     </div>
 
     <!-- 授权管理 + 应用信息 -->
-    <p class="desc" style="padding-top:8px;">授权管理与版本更新。</p>
+    <p class="desc pt-8">授权管理与版本更新。</p>
     <div class="settings-row1">
       <!-- 授权管理 -->
       <div class="card auth-card" :class="{ 'card-dim': !cardMatch(['授权管理']) }">
@@ -103,12 +103,12 @@
           </div>
         </div>
 
-        <div class="row" style="gap: 8px; margin-top: 10px;">
+        <div class="row gap-8 mt-10">
           <button class="btn btn-sm" @click="verifyKey" :disabled="!authKey">
             <i data-lucide="check"></i>验证
           </button>
           <button class="btn btn-sm btn-ghost" @click="clearKey">清除</button>
-          <span :class="['tag', authStatus === 'verified' ? 'tag-green' : authStatus === 'invalid' ? 'tag-red' : 'tag-amber']" style="margin-left: 4px;">
+          <span :class="['tag', authStatus === 'verified' ? 'tag-green' : authStatus === 'invalid' ? 'tag-red' : 'tag-amber', 'ml-4']">
             <span :class="['pulse-dot', authStatus === 'verified' ? '' : 'idle']" :style="authStatus === 'verified' ? {background:'var(--ok)'} : authStatus === 'invalid' ? {background:'var(--primary)'} : {background:'var(--text-4)'}"></span>
             {{ authStatusText }}
           </span>
@@ -126,9 +126,9 @@
         <div class="info-row">
           <span class="muted">当前版本：</span>
           <span class="version mono">v{{ appVersion }}</span>
-          <span v-if="platform" class="tag tag-cyan" style="font-size:11px;margin-left:6px;">{{ platform }}</span>
+          <span v-if="platform" class="tag tag-cyan fs-11 ml-6">{{ platform }}</span>
         </div>
-        <div class="row" style="gap: 8px; margin-top: 10px;">
+        <div class="row gap-8 mt-10">
           <button
             class="btn btn-sm"
             @click="checkUpdate"
@@ -137,9 +137,9 @@
             <i data-lucide="refresh-cw" :class="{ 'spin': updateStatus === 'checking' }"></i>
             {{ updateStatus === 'checking' ? '检查中...' : '检查更新' }}
           </button>
-          <span v-if="updateStatus === 'up-to-date'" class="tag tag-green" style="font-size:11px;">已是最新</span>
-          <span v-else-if="updateStatus === 'available'" class="tag tag-green" style="font-size:11px;">{{ updateInfo.version }}</span>
-          <span v-else-if="updateStatus === 'error'" class="tag tag-red" style="font-size:11px;" :title="updateError">{{ updateError }}</span>
+          <span v-if="updateStatus === 'up-to-date'" class="tag tag-green fs-11">已是最新</span>
+          <span v-else-if="updateStatus === 'available'" class="tag tag-green fs-11">{{ updateInfo.version }}</span>
+          <span v-else-if="updateStatus === 'error'" class="tag tag-red fs-11" :title="updateError">{{ updateError }}</span>
           <button v-if="updateStatus === 'available'" class="btn btn-sm btn-primary" @click="openDownloadUrl">
             <i data-lucide="download"></i>下载
           </button>
@@ -148,21 +148,21 @@
           </button>
         </div>
         <!-- 更新内容 -->
-        <div v-if="updateStatus === 'available' && updateInfo.body" class="update-info" style="margin-top: 10px;">
+        <div v-if="updateStatus === 'available' && updateInfo.body" class="update-info mt-10">
           <p class="update-info-title">更新内容：</p>
           <p class="update-info-body">{{ truncateBody(updateInfo.body) }}</p>
         </div>
-        <button class="btn btn-secondary btn-block" style="margin-top: 10px;" @click="openCommunity">
+        <button class="btn btn-secondary btn-block mt-10" @click="openCommunity">
           <i data-lucide="users"></i>模板库及交流群
         </button>
       </div>
     </div>
 
     <!-- 数据管理 -->
-    <p class="desc" style="padding-top: 8px;">备份或恢复应用设置。</p>
+    <p class="desc pt-8">备份或恢复应用设置。</p>
     <div class="card" :class="{ 'card-dim': !cardMatch(['数据管理']) }">
       <h3 class="card-title"><i data-lucide="database"></i> 数据管理</h3>
-      <div class="row" style="gap: 10px; flex-wrap: wrap;">
+      <div class="row gap-10" style="flex-wrap: wrap;">
         <button class="btn btn-sm" @click="exportSettings">
           <i data-lucide="download"></i>导出设置
         </button>
@@ -173,7 +173,7 @@
           <i data-lucide="rotate-ccw"></i>恢复默认
         </button>
       </div>
-      <p class="setting-hint muted" style="margin-top: 10px;">
+      <p class="setting-hint muted mt-10">
         导出将下载包含路径、授权等配置的 settings.json；导入后会立即生效并刷新页面。
       </p>
       <input
@@ -186,18 +186,18 @@
     </div>
 
     <!-- 运行日志 -->
-    <p class="desc" style="padding-top: 8px;">查看操作过程、错误与提示。</p>
+    <p class="desc pt-8">查看操作过程、错误与提示。</p>
     <div class="card" :class="{ 'card-dim': !cardMatch(['运行日志']) }">
-      <div class="row-spread" style="margin-bottom: 10px;">
-        <h3 class="card-title" style="margin: 0;">
+      <div class="row-spread mb-10">
+        <h3 class="card-title m-0">
           <i data-lucide="terminal"></i> 运行日志
           <span class="log-stats">
-            <span class="tag tag-blue" style="font-size:11px;">INFO {{ logCounts.info }}</span>
-            <span class="tag tag-amber" style="font-size:11px;">WARN {{ logCounts.warn }}</span>
-            <span class="tag tag-red" style="font-size:11px;">ERR {{ logCounts.error }}</span>
+            <span class="tag tag-blue fs-11">INFO {{ logCounts.info }}</span>
+            <span class="tag tag-amber fs-11">WARN {{ logCounts.warn }}</span>
+            <span class="tag tag-red fs-11">ERR {{ logCounts.error }}</span>
           </span>
         </h3>
-        <div class="row" style="gap: 6px;">
+        <div class="row gap-8">
           <label class="checkbox" title="自动滚动到底部">
             <input type="checkbox" v-model="autoScroll" />
             <span class="box"></span>
@@ -237,9 +237,9 @@
 
     <!-- 联系开发者 -->
     <div class="card contact-card" :class="{ 'card-dim': !cardMatch(['联系开发者']) }">
-      <div class="row" style="gap: 8px;">
+      <div class="row gap-8">
         <i data-lucide="message-circle"></i>
-        <span style="font-weight: 600;">联系开发者</span>
+        <span class="fw-600">联系开发者</span>
       </div>
       <p class="muted" style="margin: 8px 0 0; font-size: 13px;">
         如有问题或建议，请联系开发者：<b class="mono">webzhouh@163.com</b>
@@ -746,6 +746,26 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* 工具类 */
+.mt-8 { margin-top: 8px; }
+.mt-10 { margin-top: 10px; }
+.mt-14 { margin-top: 14px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-10 { margin-bottom: 10px; }
+.gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; }
+.fs-11 { font-size: 11px; }
+.fs-12 { font-size: 12px; }
+.ml-4 { margin-left: 4px; }
+.ml-8 { margin-left: 8px; }
+.w-full { width: 100%; }
+.pt-8 { padding-top: 8px; }
+.pb-0 { padding-bottom: 0; }
+.ml-6 { margin-left: 6px; }
+.m-0 { margin: 0; }
+.fw-600 { font-weight: 600; }
+
 .settings-row1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
 .card-title i[data-lucide] { width: 16px; height: 16px; color: var(--primary); }
 

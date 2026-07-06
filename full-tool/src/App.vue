@@ -28,6 +28,7 @@
             ref="searchRef"
             v-model="searchQuery"
             placeholder="搜索功能..."
+            @input="onSearchInput(searchQuery)"
             @focus="searchFocus = true"
             @blur="onSearchBlur"
             @keydown.down.prevent="onSearchDown"
@@ -108,6 +109,8 @@
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import pkg from '../package.json';
 import { ToastSymbol, createToast } from './composables/useToast.js';
+import { logger } from './composables/useLogger.js';
+import { debounce } from './composables/useLogger.js';
 import { provide } from 'vue';
 import StatusBar from './components/StatusBar.vue';
 import ImagePreview from './components/ImagePreview.vue';
@@ -136,6 +139,12 @@ const searchFocus = ref(false);
 const searchIndex = ref(0);
 const globalCtxMenu = ref({ show: false, x: 0, y: 0 });
 
+// Debounced search query for filtering (avoid excessive re-filtering on every keystroke)
+const debouncedSearchQuery = ref('');
+const onSearchInput = debounce(function(value) {
+  debouncedSearchQuery.value = value;
+}, 200);
+
 const searchItems = [
   { id: 'p1', title: '文档一键导出', desc: 'PDF/PPT/Excel 批量导出图片', icon: 'file-text', tab: 'p1' },
   { id: 'p2', title: '场景化图片排版', desc: '画布合成与场景模板', icon: 'image', tab: 'p2' },
@@ -148,8 +157,8 @@ const searchItems = [
 ];
 
 const filteredSearchItems = computed(() => {
-  if (!searchQuery.value.trim()) return searchItems;
-  const q = searchQuery.value.toLowerCase();
+  if (!debouncedSearchQuery.value.trim()) return searchItems;
+  const q = debouncedSearchQuery.value.toLowerCase();
   return searchItems.filter(i => i.title.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q));
 });
 
@@ -169,6 +178,7 @@ function onSearchEnter() {
 function goSearchItem(item) {
   switchTab(item.tab);
   searchQuery.value = '';
+  debouncedSearchQuery.value = '';
   searchFocus.value = false;
   searchIndex.value = 0;
 }
@@ -203,7 +213,7 @@ function onToggleDevTools() {
     const { ipcRenderer } = require('electron');
     ipcRenderer.send('toggle-devtools');
   } catch (e) {
-    console.warn('无法打开开发者工具', e);
+    logger.warn('无法打开开发者工具', e);
   }
 }
 
@@ -297,11 +307,11 @@ onMounted(() => {
   if (window.lucide) window.lucide.createIcons();
 
   window.addEventListener('error', (e) => {
-    console.error('[Global Error]', e.message, e.filename, e.lineno);
+    logger.error('[Global Error]', e.message, e.filename, e.lineno);
     window.showToast?.('运行时错误: ' + e.message, 'error');
   });
   window.addEventListener('unhandledrejection', (e) => {
-    console.error('[Unhandled Promise]', e.reason);
+    logger.error('[Unhandled Promise]', e.reason);
     window.showToast?.('未处理的异步错误', 'error');
     e.preventDefault();
   });

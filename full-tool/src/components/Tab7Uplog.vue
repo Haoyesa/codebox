@@ -439,7 +439,7 @@ const $=s=>container.querySelector(s);
         }, 'image/png');
       }).catch(err => {
         toast.show('导出失败，请重试');
-        console.error('html2canvas error:', err);
+        logger.error('html2canvas error:', err);
       });
       return;
     }
@@ -585,14 +585,14 @@ onBeforeUnmount(() => {
 <style>
 
 .highmd-editor-root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-.highmd-editor-root .topbar{height:52px;background:linear-gradient(180deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.92) 100%);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;position:sticky;top:0;z-index:50;backdrop-filter:saturate(150%) blur(8px)}
+.highmd-editor-root .topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;position:sticky;top:0;z-index:50;backdrop-filter:saturate(150%) blur(8px)}
 .highmd-editor-root .brand{display:flex;align-items:center;gap:10px;font-weight:700}
 .highmd-editor-root .brand .mark{width:32px;height:32px;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-2) 100%);color:#fff;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:800;letter-spacing:-.5px;box-shadow:0 2px 8px var(--primary-glow)}
 .highmd-editor-root .brand .name{font-size:16px;letter-spacing:-.3px;background:linear-gradient(90deg,var(--text) 0%,var(--text-2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .highmd-editor-root .brand .name span{font-weight:400;opacity:.5;font-size:12px;margin-left:4px;-webkit-text-fill-color:var(--text-3)}
 .highmd-editor-root .nav-group{display:flex;align-items:center;gap:6px;margin-left:16px;background:var(--panel-2);padding:4px;border-radius:10px;border:1px solid var(--border)}
 .highmd-editor-root .nav-btn{height:32px;padding:0 14px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2);border:0;background:transparent;transition:all .15s;white-space:nowrap;font-weight:500}
-.highmd-editor-root .nav-btn:hover{color:var(--text);background:rgba(15,23,42,.04)}
+.highmd-editor-root .nav-btn:hover{color:var(--text);background:var(--panel-2)}
 .highmd-editor-root .nav-btn.primary{background:linear-gradient(180deg,var(--primary) 0%,var(--primary-2) 100%);color:#fff;box-shadow:0 2px 8px var(--primary-glow),0 0 0 1px rgba(255,255,255,.06) inset}
 .highmd-editor-root .nav-btn.primary:hover{background:linear-gradient(180deg,var(--primary-2) 0%,#be123c 100%);box-shadow:0 4px 14px var(--primary-glow)}
 .highmd-editor-root .nav-btn svg{width:14px;height:14px}
@@ -605,26 +605,26 @@ onBeforeUnmount(() => {
 .highmd-editor-root .vip-btn:hover{filter:brightness(1.05)}
 .highmd-editor-root .login-link{font-weight:500;color:var(--text)}
 .highmd-editor-root .workspace{display:grid;grid-template-columns:72px 1fr 1fr 300px;height:calc(100vh - 52px)}
-.highmd-editor-root .pages-bar{background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:10px;overflow-y:auto}
-.highmd-editor-root .page-thumb{width:58px;height:78px;border:1.5px dashed var(--border-strong);border-radius:4px;background:#fff;display:grid;place-items:center;font-size:9px;color:var(--text-3);cursor:pointer;position:relative;padding:6px 4px;text-align:center;line-height:1.2;transition:all .15s;flex-shrink:0;overflow:hidden;word-break:break-all}
-.highmd-editor-root .page-thumb:hover{border-color:#999}
+.highmd-editor-root .pages-bar{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:10px;overflow-y:auto}
+.highmd-editor-root .page-thumb{width:58px;height:78px;border:1.5px dashed var(--border-strong);border-radius:4px;background:var(--panel);display:grid;place-items:center;font-size:9px;color:var(--text-3);cursor:pointer;position:relative;padding:6px 4px;text-align:center;line-height:1.2;transition:all .15s;flex-shrink:0;overflow:hidden;word-break:break-all}
+.highmd-editor-root .page-thumb:hover{border-color:var(--text-3)}
 .highmd-editor-root .page-thumb.active{border:1.5px solid var(--primary);border-style:solid}
 .highmd-editor-root .page-thumb.active::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--primary);border-radius:0 0 3px 3px}
 .highmd-editor-root .page-add{width:56px;height:56px;border:1px solid var(--border);border-radius:6px;display:grid;place-items:center;color:var(--text-3);transition:all .15s;flex-shrink:0}
-.highmd-editor-root .page-add:hover{color:var(--text);border-color:var(--border-strong);background:#fafafa}
+.highmd-editor-root .page-add:hover{color:var(--text);border-color:var(--border-strong);background:var(--panel-2)}
 .highmd-editor-root .pages-bar .spacer{flex:1}
 .highmd-editor-root .collapse-btn{font-size:12px;color:var(--text-3);display:inline-flex;align-items:center;gap:4px;padding:8px 12px;flex-shrink:0}
 .highmd-editor-root .collapse-btn:hover{color:var(--text)}
 .highmd-editor-root .editor{background:var(--bg);padding:20px 28px 28px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
-.highmd-editor-root .editor-card{background:#fff;border-radius:var(--radius-lg);padding:20px 24px;box-shadow:var(--shadow-sm);border:1px solid var(--border);position:relative;overflow:hidden}
+.highmd-editor-root .editor-card{background:var(--panel);border-radius:var(--radius-lg);padding:20px 24px;box-shadow:var(--shadow-sm);border:1px solid var(--border);position:relative;overflow:hidden}
 .highmd-editor-root .editor-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary) 0%,var(--neon-cyan) 100%);border-radius:var(--radius-lg) var(--radius-lg) 0 0}
 .highmd-editor-root .field-label{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px}
 .highmd-editor-root .field-label .label-info{color:var(--text-3);font-weight:400;font-size:12px}
-.highmd-editor-root .title-input{width:100%;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:8px;font-size:15px;transition:border-color .15s;background:#fff}
+.highmd-editor-root .title-input{width:100%;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:8px;font-size:15px;transition:border-color .15s;background:var(--panel)}
 .highmd-editor-root .title-input:focus{border-color:var(--primary)}
 .highmd-editor-root .toolbar{display:flex;align-items:center;gap:2px;padding:6px 0;border-bottom:1px solid var(--border);margin-bottom:12px;flex-wrap:wrap}
 .highmd-editor-root .tb-btn{height:30px;min-width:30px;padding:0 8px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;gap:4px;color:var(--text-2);font-size:13px;font-weight:500;transition:all .15s}
-.highmd-editor-root .tb-btn:hover{background:#f3f3f3;color:var(--text)}
+.highmd-editor-root .tb-btn:hover{background:var(--panel-2);color:var(--text)}
 .highmd-editor-root .tb-btn.active{background:var(--primary);color:#fff}
 .highmd-editor-root .tb-btn svg{width:15px;height:15px}
 .highmd-editor-root .tb-sep{width:1px;height:16px;background:var(--border);margin:0 6px;align-self:center}
@@ -632,20 +632,20 @@ onBeforeUnmount(() => {
 .highmd-editor-root .tb-check input[type=checkbox]{accent-color:var(--primary);cursor:pointer;margin:0}
 .highmd-editor-root .tb-spacer{flex:1}
 .highmd-editor-root .tb-action{font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:4px;padding:0 8px;height:30px;border-radius:6px;transition:all .15s}
-.highmd-editor-root .tb-action:hover{color:var(--text);background:#f3f3f3}
+.highmd-editor-root .tb-action:hover{color:var(--text);background:var(--panel-2)}
 .highmd-editor-root .tb-action svg{width:13px;height:13px}
 .highmd-editor-root .editor-area{min-height:260px;padding:6px 4px;font-size:15px;line-height:1.85;color:var(--text-2);outline:none}
-.highmd-editor-root .editor-area:empty::before{content:"创作从这里开始";color:#c5c5c5}
+.highmd-editor-root .editor-area:empty::before{content:"创作从这里开始";color:var(--text-3)}
 .highmd-editor-root .editor-area h1{font-size:22px;font-weight:700;color:var(--text);margin:12px 0 6px}
 .highmd-editor-root .editor-area h2{font-size:18px;font-weight:700;color:var(--text);margin:10px 0 4px}
 .highmd-editor-root .editor-area h3{font-size:16px;font-weight:600;color:var(--text);margin:8px 0 4px}
 .highmd-editor-root .toggle{width:32px;height:18px;background:var(--primary);border-radius:999px;position:relative;cursor:pointer;transition:background .15s;flex-shrink:0}
-.highmd-editor-root .toggle::after{content:"";position:absolute;top:2px;left:16px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.highmd-editor-root .toggle.off{background:#d8d8d8}
+.highmd-editor-root .toggle::after{content:"";position:absolute;top:2px;left:16px;width:14px;height:14px;background:var(--panel);border-radius:50%;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.highmd-editor-root .toggle.off{background:var(--border)}
 .highmd-editor-root .toggle.off::after{left:2px}
 .highmd-editor-root .import-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.highmd-editor-root .import-card{background:linear-gradient(180deg,#fff 0%,var(--panel-2) 100%);border:1.5px dashed var(--border);border-radius:var(--radius-lg);padding:22px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;transition:all .2s;cursor:pointer}
-.highmd-editor-root .import-card:hover{border-color:var(--primary);border-style:solid;transform:translateY(-2px);box-shadow:var(--shadow-lg);background:#fff}
+.highmd-editor-root .import-card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);border:1.5px dashed var(--border);border-radius:var(--radius-lg);padding:22px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;transition:all .2s;cursor:pointer}
+.highmd-editor-root .import-card:hover{border-color:var(--primary);border-style:solid;transform:translateY(-2px);box-shadow:var(--shadow-lg);background:var(--panel)}
 .highmd-editor-root .import-icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff}
 .highmd-editor-root .import-icon svg{width:18px;height:18px}
 .highmd-editor-root .import-icon.wechat{background:#07c160}
@@ -657,11 +657,11 @@ onBeforeUnmount(() => {
 .highmd-editor-root .preview-header{width:100%;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text-2)}
 .highmd-editor-root .preview-header .left{display:flex;align-items:center;gap:6px}
 .highmd-editor-root .preview-header .name{color:var(--text);font-weight:600}
-.highmd-editor-root .ratio-group{display:flex;gap:4px;background:#ececec;border-radius:7px;padding:2px}
+.highmd-editor-root .ratio-group{display:flex;gap:4px;background:var(--border);border-radius:7px;padding:2px}
 .highmd-editor-root .ratio-btn{height:24px;min-width:34px;padding:0 8px;border-radius:5px;font-size:12px;color:var(--text-2);font-weight:500;transition:all .15s}
 .highmd-editor-root .ratio-btn:hover{color:var(--text)}
 .highmd-editor-root .ratio-btn.active{background:var(--primary);color:#fff}
-.highmd-editor-root .preview-frame{width:100%;max-width:340px;aspect-ratio:3 / 5;border:1.5px dashed #b8b8b8;border-radius:10px;background:#fff;position:relative;overflow:hidden;transition:aspect-ratio .25s}
+.highmd-editor-root .preview-frame{width:100%;max-width:340px;aspect-ratio:3 / 5;border:1.5px dashed var(--border);border-radius:10px;background:var(--panel);position:relative;overflow:hidden;transition:aspect-ratio .25s}
 .highmd-editor-root .preview-frame.r-3-4{aspect-ratio:3 / 4}
 .highmd-editor-root .preview-stage{position:absolute;inset:6px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;padding:28px 22px 22px;font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;transition:background .25s,color .25s}
 .highmd-editor-root .page-indicator{font-size:12px;color:var(--text-3)}
@@ -684,8 +684,8 @@ onBeforeUnmount(() => {
 .highmd-editor-root .tpl-card .body p{margin:var(--p-mt) 0 var(--p-mb) 0;padding-left:var(--p-pl);padding-right:var(--p-pr);text-indent:var(--p-indent)}
 .highmd-editor-root .tpl-card .body h1,.highmd-editor-root .tpl-card .body h2,.highmd-editor-root .tpl-card .body h3{font-size:inherit;line-height:inherit;margin:0 0 4px 0;font-weight:700}
 .highmd-editor-root .tpl-card .footer{font-size:10px;opacity:.4;margin-top:10px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid currentColor;padding-top:8px}
-.highmd-editor-root .template-lib{background:linear-gradient(180deg,var(--panel-2) 0%,#f0f4f8 100%);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.highmd-editor-root .lib-tabs{display:flex;align-items:center;gap:28px;padding:16px 20px 12px;font-size:15px;border-bottom:1px solid rgba(0,0,0,.04);background:linear-gradient(180deg,#fff 0%,var(--panel-2) 100%)}
+.highmd-editor-root .template-lib{background:linear-gradient(180deg,var(--panel-2) 0%,var(--panel) 100%);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.highmd-editor-root .lib-tabs{display:flex;align-items:center;gap:28px;padding:16px 20px 12px;font-size:15px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%)}
 .highmd-editor-root .lib-tab{position:relative;font-weight:600;color:var(--text-3);cursor:pointer;padding-bottom:6px;transition:color .15s}
 .highmd-editor-root .lib-tab:hover{color:var(--text-2)}
 .highmd-editor-root .lib-tab.active{color:var(--text)}
@@ -702,18 +702,18 @@ onBeforeUnmount(() => {
 .highmd-editor-root .tpl-mini .mini-bar{height:1.2px;background:currentColor;opacity:.25;margin:2px 0}
 .highmd-editor-root .tpl-mini .mini-footer{position:absolute;bottom:4px;left:5px;right:5px;font-size:5px;opacity:.5;display:flex;justify-content:space-between}
 .highmd-editor-root .adj-panel{padding:4px 4px 24px}
-.highmd-editor-root .adj-card{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:14px;margin-bottom:12px}
+.highmd-editor-root .adj-card{background:var(--panel);border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:14px;margin-bottom:12px}
 .highmd-editor-root .adj-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:13px;color:var(--text-2)}
 .highmd-editor-root .adj-row:last-child{margin-bottom:0}
 .highmd-editor-root .adj-row input[type=range]{width:55%;accent-color:var(--primary)}
-.highmd-editor-root .adj-row select{padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff}
+.highmd-editor-root .adj-row select{padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--panel)}
 .highmd-editor-root .adj-row .color-swatch{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);cursor:pointer}
-.highmd-editor-root .adj-tabs{display:flex;background:#efe6d8;border-radius:8px;padding:3px;gap:2px;margin-bottom:12px}
+.highmd-editor-root .adj-tabs{display:flex;background:var(--panel-2);border-radius:8px;padding:3px;gap:2px;margin-bottom:12px}
 .highmd-editor-root .adj-tab{flex:1;text-align:center;font-size:12.5px;padding:7px 4px;border-radius:6px;color:var(--text-2);cursor:pointer;transition:all .15s;font-weight:500;white-space:nowrap}
 .highmd-editor-root .adj-tab:hover:not(.active){color:var(--text)}
-.highmd-editor-root .adj-tab.active{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.06);font-weight:600}
+.highmd-editor-root .adj-tab.active{background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.06);font-weight:600}
 .highmd-editor-root .adj-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.highmd-editor-root .adj-mini-card{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:11px 10px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;position:relative;transition:all .15s}
+.highmd-editor-root .adj-mini-card{background:var(--panel);border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:11px 10px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;position:relative;transition:all .15s}
 .highmd-editor-root .adj-mini-card:hover{border-color:rgba(0,0,0,.18)}
 .highmd-editor-root .adj-mini-card.active{box-shadow:inset 0 -2px 0 var(--primary);border-color:rgba(15,118,110,.35)}
 .highmd-editor-root .adj-mini-card.vip-disabled{opacity:.7;cursor:not-allowed}
@@ -729,24 +729,24 @@ onBeforeUnmount(() => {
 .highmd-editor-root .adj-link:hover{color:var(--primary)}
 .highmd-editor-root .adj-section-head .vip-tag.inline{background:#111;color:#ffd57a;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:.5px}
 .highmd-editor-root .adj-section-head .bg-actions{margin-left:auto;display:flex;gap:10px}
-.highmd-editor-root .adj-block{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:12px 14px;margin-bottom:8px}
+.highmd-editor-root .adj-block{background:var(--panel);border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:12px 14px;margin-bottom:8px}
 .highmd-editor-root .adj-block:last-child{margin-bottom:0}
 .highmd-editor-root .adj-field-label{font-size:12.5px;color:var(--text-2);margin:6px 0 6px;font-weight:500}
 .highmd-editor-root .adj-field-label:first-child{margin-top:0}
-.highmd-editor-root .size-group{display:flex;background:#f1ede7;border-radius:6px;padding:2px;margin-bottom:8px}
+.highmd-editor-root .size-group{display:flex;background:var(--panel-2);border-radius:6px;padding:2px;margin-bottom:8px}
 .highmd-editor-root .size-btn{flex:1;font-size:12px;padding:6px 2px;border-radius:4px;color:var(--text-2);font-weight:500;transition:all .15s}
 .highmd-editor-root .size-btn:hover{color:var(--text)}
 .highmd-editor-root .size-btn.active{background:var(--primary);color:#fff}
 .highmd-editor-root .font-select-wrap{position:relative}
-.highmd-editor-root .font-select{width:100%;padding:8px 30px 8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;appearance:none;-webkit-appearance:none;cursor:pointer;color:var(--text);font-family:inherit}
+.highmd-editor-root .font-select{width:100%;padding:8px 30px 8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--panel);appearance:none;-webkit-appearance:none;cursor:pointer;color:var(--text);font-family:inherit}
 .highmd-editor-root .font-select:focus{outline:none;border-color:var(--primary)}
 .highmd-editor-root .font-select-wrap::after{content:"\25BE";position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-2);font-size:11px}
-.highmd-editor-root .align-group{display:flex;background:#f1ede7;border-radius:6px;padding:2px;flex:1;gap:0}
+.highmd-editor-root .align-group{display:flex;background:var(--panel-2);border-radius:6px;padding:2px;flex:1;gap:0}
 .highmd-editor-root .align-btn{flex:1;display:flex;align-items:center;justify-content:center;padding:7px;border-radius:4px;color:var(--text-2);transition:all .15s;background:transparent}
 .highmd-editor-root .align-btn:hover{color:var(--text)}
 .highmd-editor-root .align-btn.active{background:#FFC53D;color:#111}
 .highmd-editor-root .align-btn svg{width:16px;height:16px}
-.highmd-editor-root .num-stepper{display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:0 4px 0 8px;flex:1;height:32px;gap:6px;min-width:0}
+.highmd-editor-root .num-stepper{display:flex;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:0 4px 0 8px;flex:1;height:32px;gap:6px;min-width:0}
 .highmd-editor-root .num-stepper .step-icon{color:var(--text-2);font-size:12px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:16px;line-height:1}
 .highmd-editor-root .num-stepper input{flex:1;border:0;text-align:right;font-size:13px;font-weight:500;min-width:0;width:100%;background:transparent;color:var(--text);padding:0;-moz-appearance:textfield;font-family:inherit}
 .highmd-editor-root .num-stepper input::-webkit-outer-spin-button,.num-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -758,8 +758,8 @@ onBeforeUnmount(() => {
 .highmd-editor-root .adj-row-flex:last-child{margin-bottom:0}
 .highmd-editor-root .bg-upload{background:linear-gradient(180deg,#2c3a4a 0%,#1c2735 100%);border-radius:8px;height:100px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
 .highmd-editor-root .bg-upload::before{content:"";position:absolute;inset:0;background-image:linear-gradient(45deg,rgba(255,255,255,.04) 25%,transparent 25%),linear-gradient(-45deg,rgba(255,255,255,.04) 25%,transparent 25%);background-size:18px 18px}
-.highmd-editor-root .bg-upload-btn{background:rgba(255,255,255,.96);color:var(--text);font-size:13px;font-weight:500;padding:8px 18px;border-radius:6px;z-index:1;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
-.highmd-editor-root .bg-upload-btn:hover{background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.highmd-editor-root .bg-upload-btn{background:var(--panel);color:var(--text);font-size:13px;font-weight:500;padding:8px 18px;border-radius:6px;z-index:1;display:inline-flex;align-items:center;gap:5px;transition:all .15s;border:1px solid var(--border)}
+.highmd-editor-root .bg-upload-btn:hover{background:var(--panel-2);box-shadow:0 2px 6px rgba(0,0,0,.15)}
 @media (max-width:1280px){.highmd-editor-root .workspace{grid-template-columns:68px 1fr 1fr 260px}.highmd-editor-root .editor{padding:18px 20px 22px}.highmd-editor-root .preview{padding:18px 16px 22px}}
 @media (max-width:1024px){.highmd-editor-root .workspace{grid-template-columns:68px 1fr 260px}.highmd-editor-root .preview{display:none}}
 @media (max-width:720px){.highmd-editor-root .workspace{grid-template-columns:56px 1fr}.highmd-editor-root .template-lib{display:none}.highmd-editor-root .nav-group{gap:4px}}

@@ -23,21 +23,25 @@
 <script setup>
 import { ref } from 'vue';
 
+const i18n = {
+  ConfirmDialog: { title: '确认', ok: '确认', cancel: '取消' }
+};
+
 const visible = ref(false);
-const title = ref('确认');
+const title = ref(i18n.ConfirmDialog.title);
 const message = ref('');
 const type = ref('confirm'); // confirm | warning | danger
-const confirmText = ref('确认');
-const cancelText = ref('取消');
+const confirmText = ref(i18n.ConfirmDialog.ok);
+const cancelText = ref(i18n.ConfirmDialog.cancel);
 let resolveFn = null;
 let rejectFn = null;
 
 function open(options = {}) {
-  title.value = options.title || '确认';
+  title.value = options.title || i18n.ConfirmDialog.title;
   message.value = options.message || '';
   type.value = options.type || 'confirm';
-  confirmText.value = options.confirmText || '确认';
-  cancelText.value = options.cancelText || '取消';
+  confirmText.value = options.confirmText || i18n.ConfirmDialog.ok;
+  cancelText.value = options.cancelText || i18n.ConfirmDialog.cancel;
   visible.value = true;
   requestAnimationFrame(() => window.lucide?.createIcons());
   return new Promise((resolve, reject) => {

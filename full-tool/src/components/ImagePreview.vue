@@ -6,7 +6,7 @@
           <img :src="src" :alt="alt" class="preview-img" />
           <div class="preview-toolbar">
             <span class="preview-name">{{ name }}</span>
-            <button class="preview-close" @click="close" title="关闭 (ESC)">
+            <button class="preview-close" @click="close" :title="i18n.ImagePreview.close">
               <i data-lucide="x"></i>
             </button>
           </div>
@@ -19,15 +19,19 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 
+const i18n = {
+  ImagePreview: { alt: '图片预览', close: '关闭 (ESC)' }
+};
+
 const visible = ref(false);
 const src = ref('');
-const alt = ref('');
+const alt = ref(i18n.ImagePreview.alt);
 const name = ref('');
 
 function open(url, options = {}) {
   src.value = url;
-  alt.value = options.alt || '';
-  name.value = options.name || '图片预览';
+  alt.value = options.alt || i18n.ImagePreview.alt;
+  name.value = options.name || i18n.ImagePreview.alt;
   visible.value = true;
   // 渲染 lucide 图标
   requestAnimationFrame(() => window.lucide?.createIcons());

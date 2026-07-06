@@ -126,9 +126,13 @@ async function pickOutput() {
     toast.show('请在 Electron 版本中使用', 'warn');
     return;
   }
-  const r = await window.electronAPI.selectOutputDir();
-  if (r.canceled || !r.filePaths.length) return;
-  outputDir.value = r.filePaths[0];
+  try {
+    const r = await window.electronAPI.selectOutputDir();
+    if (r.canceled || !r.filePaths.length) return;
+    outputDir.value = r.filePaths[0];
+  } catch (err) {
+    toast.show('选择输出目录失败: ' + err.message, 'error');
+  }
 }
 
 function parseXhsUrl(url) {
@@ -246,6 +250,7 @@ async function scrapeSingleTask(t) {
   } catch (e) {
     t.status = 'error';
     t.message = e.message;
+    toast.show('抓取失败: ' + e.message, 'error');
   }
 }
 

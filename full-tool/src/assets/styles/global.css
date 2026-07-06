@@ -579,9 +579,9 @@ input[type=range]::-moz-range-thumb {
   box-shadow: 0 0 6px var(--primary-glow);
 }
 
-/* 步骤导航 (Tab2 场景化 / Tab1 上传步骤) */
-.step-bar { display: flex; gap: 10px; justify-content: center; padding: 0 0 16px; }
-.step {
+/* 步骤导航 (通用，需要用的组件请显式引用) */
+.step-bar-global { display: flex; gap: 10px; justify-content: center; padding: 0 0 16px; }
+.step-global {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 16px;
   border: 1px solid var(--border);
@@ -591,14 +591,14 @@ input[type=range]::-moz-range-thumb {
   font-size: 13px; font-weight: 500;
   transition: all .2s;
 }
-.step:hover { color: var(--text); border-color: var(--border-strong); }
-.step.active {
+.step-global:hover { color: var(--text); border-color: var(--border-strong); }
+.step-global.active {
   color: var(--primary);
   border-color: var(--primary);
   background: var(--primary-soft);
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08), 0 0 18px -2px var(--primary-glow);
 }
-.step-num {
+.step-num-global {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px;
   border-radius: 50%;
@@ -608,7 +608,7 @@ input[type=range]::-moz-range-thumb {
   font-size: 11px;
   font-weight: 600;
 }
-.step.active .step-num { background: var(--primary); color: #fff; }
+.step-global.active .step-num-global { background: var(--primary); color: #fff; }
 
 /* 响应式 */
 @media (max-width: 1024px) {

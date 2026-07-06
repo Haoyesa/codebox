@@ -14,18 +14,21 @@
         <div class="card-section" :class="{ dragging: isDragging }" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
           <div class="label">文件选择</div>
           <div class="pick-buttons">
-            <button class="btn" @click="pickFiles">
-              <i data-lucide="file-plus"></i>
+            <button class="btn" :disabled="isPicking" @click="pickFiles">
+              <i v-if="isPicking" data-lucide="loader-2" class="spin-icon"></i>
+              <i v-else data-lucide="file-plus"></i>
               选择文件
             </button>
-            <button class="btn" @click="pickFolder">
-              <i data-lucide="folder-open"></i>
+            <button class="btn" :disabled="isPicking" @click="pickFolder">
+              <i v-if="isPicking" data-lucide="loader-2" class="spin-icon"></i>
+              <i v-else data-lucide="folder-open"></i>
               选择文件夹
             </button>
           </div>
           <div class="full-pick">
-            <button class="btn" @click="pickOutputDir">
-              <i data-lucide="folder-output"></i>
+            <button class="btn" :disabled="isPicking" @click="pickOutputDir">
+              <i v-if="isPicking" data-lucide="loader-2" class="spin-icon"></i>
+              <i v-else data-lucide="folder-output"></i>
               {{ state.outputDir || '选择输出目录' }}
             </button>
           </div>
@@ -244,6 +247,7 @@ import { pdfToPngs } from '../utils/pdfToPngs.js';
 import { formatSize, truncatePath, getExt, getMimeFromPath, safeOutputDir, getBasename } from '../utils/file.js';
 import { useSettings } from '../composables/useSettings.js';
 import { useToast } from '../composables/useToast.js';
+import { logger } from '../composables/useLogger.js';
 
 const toast = useToast();
 
@@ -277,6 +281,7 @@ const settings = reactive({
 
 const loFound = ref(true);
 const isDragging = ref(false);
+const isPicking = ref(false);
 const recentFiles = ref([]);
 let exportAbortController = null;
 
@@ -299,82 +304,100 @@ const statusClass = computed(() => {
 // Methods
 
 async function pickFiles() {
-  if (!window.electronAPI) {
-    // Fallback for browser dev
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.accept = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx';
-    input.onchange = (e) => {
-      state.files = Array.from(e.target.files);
-      state.statusText = `已选择 ${state.files.length} 个文件`;
-      toast.show(`已选择 ${state.files.length} 个文件`);
-    };
-    input.click();
-    return;
-  }
+  if (isPicking.value) return;
+  isPicking.value = true;
+  try {
+    if (!window.electronAPI) {
+      // Fallback for browser dev
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.accept = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx';
+      input.onchange = (e) => {
+        state.files = Array.from(e.target.files);
+        state.statusText = `已选择 ${state.files.length} 个文件`;
+        toast.show(`已选择 ${state.files.length} 个文件`);
+      };
+      input.click();
+      return;
+    }
 
-  const result = await window.electronAPI.openFiles();
-  if (!result.canceled && result.filePaths.length > 0) {
-    // Convert paths to file info objects
-    state.files = result.filePaths.map(p => ({
-      path: p,
-      name: getBasename(p),
-      size: 0
-    }));
-    state.statusText = `已选择 ${state.files.length} 个文件`;
-    toast.show(`已选择 ${state.files.length} 个文件`, 'success');
-    addRecentFiles(result.filePaths);
-    await nextTick();
-    window.lucide?.createIcons();
+    const result = await window.electronAPI.openFiles();
+    if (!result.canceled && result.filePaths.length > 0) {
+      // Convert paths to file info objects
+      state.files = result.filePaths.map(p => ({
+        path: p,
+        name: getBasename(p),
+        size: 0
+      }));
+      state.statusText = `已选择 ${state.files.length} 个文件`;
+      toast.show(`已选择 ${state.files.length} 个文件`, 'success');
+      addRecentFiles(result.filePaths);
+      await nextTick();
+      window.lucide?.createIcons();
+    }
+  } finally {
+    isPicking.value = false;
   }
 }
 
 async function pickFolder() {
-  if (!window.electronAPI) {
-    toast.show('浏览器模式下无法选择文件夹，请使用 Electron 版本', 'error');
-    return;
-  }
-
-  const result = await window.electronAPI.openDirectory();
-  if (!result.canceled && result.filePaths.length > 0) {
-    const folderPath = result.filePaths[0];
-    // Read all supported files in this folder
-    const dirResult = await window.electronAPI.readDir(folderPath);
-    if (dirResult.success) {
-      const supportedExt = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
-      state.folders.push({
-        path: folderPath,
-        name: getBasename(folderPath),
-        files: dirResult.files.filter(f => {
-          return supportedExt.includes(getExt(f));
-        })
-      });
-      state.statusText = `已选择文件夹：${getBasename(folderPath)}`;
-      toast.show('文件夹已添加', 'success');
-      await nextTick();
-      window.lucide?.createIcons();
+  if (isPicking.value) return;
+  isPicking.value = true;
+  try {
+    if (!window.electronAPI) {
+      toast.show('浏览器模式下无法选择文件夹，请使用 Electron 版本', 'error');
+      return;
     }
+
+    const result = await window.electronAPI.openDirectory();
+    if (!result.canceled && result.filePaths.length > 0) {
+      const folderPath = result.filePaths[0];
+      // Read all supported files in this folder
+      const dirResult = await window.electronAPI.readDir(folderPath);
+      if (dirResult.success) {
+        const supportedExt = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
+        state.folders.push({
+          path: folderPath,
+          name: getBasename(folderPath),
+          files: dirResult.files.filter(f => {
+            return supportedExt.includes(getExt(f));
+          })
+        });
+        state.statusText = `已选择文件夹：${getBasename(folderPath)}`;
+        toast.show('文件夹已添加', 'success');
+        await nextTick();
+        window.lucide?.createIcons();
+      }
+    }
+  } finally {
+    isPicking.value = false;
   }
 }
 
 async function pickOutputDir() {
-  if (!window.electronAPI) {
-    toast.show('浏览器模式下无法选择目录，请使用 Electron 版本', 'error');
-    return;
-  }
-
+  if (isPicking.value) return;
+  isPicking.value = true;
   try {
-    const result = await window.electronAPI.selectOutputDir();
-    if (result.canceled) return;
-    if (result.filePaths && result.filePaths.length > 0) {
-      state.outputDir = result.filePaths[0];
-      state.statusText = '输出目录已设置';
-      toast.show('输出目录已设置', 'success');
+    if (!window.electronAPI) {
+      toast.show('浏览器模式下无法选择目录，请使用 Electron 版本', 'error');
+      return;
     }
-  } catch (err) {
-    console.error('[pickOutputDir]', err);
-    toast.show('选择目录失败：' + (err.message || '未知错误'), 'error');
+
+    try {
+      const result = await window.electronAPI.selectOutputDir();
+      if (result.canceled) return;
+      if (result.filePaths && result.filePaths.length > 0) {
+        state.outputDir = result.filePaths[0];
+        state.statusText = '输出目录已设置';
+        toast.show('输出目录已设置', 'success');
+      }
+    } catch (err) {
+      logger.error('[pickOutputDir]', err);
+      toast.show('选择目录失败：' + (err.message || '未知错误'), 'error');
+    }
+  } finally {
+    isPicking.value = false;
   }
 }
 
@@ -677,7 +700,7 @@ async function startExport() {
         addLog('info', '已导出：' + file.name);
       }
     } catch (err) {
-      console.error('Convert failed for', file.name, err);
+      logger.error('Convert failed for', file.name, err);
       state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
       addLog('error', '失败：' + file.name + ' - ' + ((err && err.message) || String(err)));
       toast.show('转换失败：' + file.name, 'error');
@@ -901,7 +924,7 @@ async function exportFullPreview() {
       successCount++;
       addLog('info', '已生成预览：' + file.name);
     } catch (err) {
-      console.error('Preview export failed for', file.name, err);
+      logger.error('Preview export failed for', file.name, err);
       state.failedFiles.push({ name: file.name, reason: (err && err.message) || String(err) });
       addLog('error', '预览失败：' + file.name + ' - ' + ((err && err.message) || String(err)));
       toast.show('预览生成失败：' + file.name, 'error');
@@ -1192,6 +1215,8 @@ onMounted(async () => {
 .tip-content { font-size: 13px; line-height: 1.6; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.spin-icon { animation: spin 0.8s linear infinite; }
 
 .card-section {
   transition: border-color 0.2s, background 0.2s;
